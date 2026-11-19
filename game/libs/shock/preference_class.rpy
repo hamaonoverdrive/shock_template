@@ -3,7 +3,7 @@ init offset = -200
 init python:
     class PreferencesStorage:
         def __init__(self, animation = False):
-            self.animation = True
+            self.animation = animation
 
         def get(self, attr):
             if hasattr(self, attr):
@@ -18,6 +18,7 @@ init python:
     shock.audio = PreferencesStorage()
     shock.anims = PreferencesStorage(True)
     shock.nvl = PreferencesStorage()
+    shock.menu = PreferencesStorage()
 
 transform null_transform(arg0=None, arg1=None, arg2=None):
     # this is STUPID but renpy won't let me use *args

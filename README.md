@@ -20,7 +20,7 @@ I've been around the block enough times to know that there's always a few things
     - *Note: this is no longer the most important thing, but it was what got me to start this project in the first place*
 
 ### Added to `/game/libs`
-If you use this project and do not remove these, you need to give credit per their license terms.
+If you use this project and do not remove these files, you need to give attribution per their license terms.
 - [FeniksDev controller support expansion](https://feniksdev.itch.io/controller-support-expansion-for-renpy)
 - [kigyodev's improved word counter](https://kigyo.itch.io/renpy-word-counter)
 - my homebrewed text bloop plugin
@@ -30,3 +30,5 @@ Subject to my changing whims.
 - Improved save screen
 - Enhanced controller support
 - Framework for better menu animations
+- OPTIONS for split history screen and main menu screen
+- MY solution to speech pauses + options to enable

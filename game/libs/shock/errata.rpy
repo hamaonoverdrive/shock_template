@@ -26,7 +26,7 @@ init python:
     renpy.display.displayable.Displayable.focus = fix_focus(renpy.display.displayable.Displayable.focus)
 
     def play_advance_sound():
-        renpy.music.play(shock.audio.get("ui_adv"), channel='adv', loop=False)
+        renpy.music.play(shock.audio.get("say_click"), channel='adv', loop=False)
         return True
 
     def get_non_linear_volume(mixer):

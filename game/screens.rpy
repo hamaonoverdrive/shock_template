@@ -482,6 +482,34 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):
     if main_menu:
         key "game_menu" action ShowMenu("main_menu")
 
+screen null_menu():
+
+    tag menu
+
+    style_prefix "game_menu"
+
+    if main_menu:
+        add gui.main_menu_background
+    else:
+        add gui.game_menu_background
+
+    frame:
+        style "game_menu_outer_frame"
+
+        hbox:
+
+            ## Reserve space for the navigation section.
+            frame:
+                style "game_menu_navigation_frame"
+
+    use navigation
+
+    textbutton _("Return"):
+        style "return_button"
+        at shock.anims.nav_hover
+
+        action Return()
+
 
 style game_menu_outer_frame is empty
 style game_menu_navigation_frame is empty
