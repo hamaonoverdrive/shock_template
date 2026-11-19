@@ -27,12 +27,12 @@ style gui_text:
 
 style button:
     properties gui.button_properties("button")
-    activate_sound audio.ui_click
-    hover_sound audio.ui_hover
+    activate_sound shock.audio.get("ui_click")
+    hover_sound shock.audio.get("ui_hover")
 
 style image_button:
-    activate_sound audio.ui_click
-    hover_sound audio.ui_hover
+    activate_sound shock.audio.get("ui_click")
+    hover_sound shock.audio.get("ui_hover")
 
 style button_text is gui_text:
     properties gui.text_properties("button")
@@ -295,6 +295,26 @@ style quick_button_text:
 
 screen navigation():
 
+    default menu_items = [
+        MenuItem("Start", Start,
+                 valid="main_menu"),
+        MenuItem("History", args=["history"], 
+                 valid="not main_menu"),
+        MenuItem("Save", args=["save"], 
+                 valid="not main_menu"),
+        MenuItem("Load", args=["load"]),
+        MenuItem("Preferences", args=["preferences"]),
+        MenuItem("End Replay", EndReplay, kwargs={"confirm":True}, 
+                 valid="_in_replay"),
+        MenuItem("Main Menu", MainMenu,
+                 valid="not _in_replay and not main_menu"),
+        MenuItem("About", args=["about"]),
+        MenuItem("Controls", args=["help"],
+                 valid='renpy.variant("pc") or (renpy.variant("web") and not renpy.variant("mobile"))'),
+        MenuItem("Quit", Quit, kwargs={"confirm":True},
+                 valid="renpy.variant('pc')")
+    ]
+
     vbox:
         style_prefix "navigation"
 
@@ -303,40 +323,10 @@ screen navigation():
 
         spacing gui.navigation_spacing
 
-        if main_menu:
+        for item in menu_items:
+            if eval(item.valid):
+                textbutton _(item.name) action [item.action(*item.args, **item.kwargs), Function(fix_click)] at shock.anims.get("nav_hover")
 
-            textbutton _("Start") action [Start(), Function(fix_click)] at hover_nav
-
-        else:
-
-            textbutton _("History") action [ShowMenu("history"), Function(fix_click)] at hover_nav
-
-            textbutton _("Save") action [ShowMenu("save"), Function(fix_click)] at hover_nav
-
-        textbutton _("Load") action [ShowMenu("load"), Function(fix_click)] at hover_nav
-
-        textbutton _("Preferences") action [ShowMenu("preferences"), Function(fix_click)] at hover_nav
-
-        if _in_replay:
-
-            textbutton _("End Replay") action [EndReplay(confirm=True), Function(fix_click)] at hover_nav
-
-        elif not main_menu:
-
-            textbutton _("Main Menu") action [MainMenu(), Function(fix_click)] at hover_nav
-
-        textbutton _("About") action [ShowMenu("about"), Function(fix_click)] at hover_nav
-
-        if renpy.variant("pc") or (renpy.variant("web") and not renpy.variant("mobile")):
-
-            ## Help isn't necessary or relevant to mobile devices.
-            textbutton _("Help") action [ShowMenu("help"), Function(fix_click)]  at hover_nav
-
-        if renpy.variant("pc"):
-
-            ## The quit button is banned on iOS and unnecessary on Android and
-            ## Web.
-            textbutton _("Quit") action Quit(confirm=not main_menu) at hover_nav
 
 
 style navigation_button is gui_button
@@ -483,7 +473,7 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):
 
     textbutton _("Return"):
         style "return_button"
-        at hover_nav
+        at shock.anims.nav_hover
 
         action Return()
 
@@ -1320,10 +1310,11 @@ screen nvl(dialogue, items=None):
         style "nvl_window"
 
         viewport:
-            yinitial 1.0
+            if shock.nvl.get("scrolling"):
+                yinitial 1.0
+                scrollbars shock.nvl.get("scrollbars")
+                mousewheel shock.nvl.get("scrollbars_mousewheel")
             ysize 1080 - (gui.nvl_borders.padding[1] + gui.nvl_borders.padding[3])
-            scrollbars nvl_scrollbars
-            mousewheel nvl_scrollbars_mousewheel
 
             vbox:
                 spacing gui.nvl_spacing

@@ -6,7 +6,7 @@ screen hover_cooldown(time):
 
 init python:
     # registring channels
-    renpy.music.register_channel(name='adv', mixer='voice')
+    renpy.music.register_channel(name='adv', mixer='sfx')
 
     def fix_focus(f):
         from functools import wraps
@@ -26,7 +26,7 @@ init python:
     renpy.display.displayable.Displayable.focus = fix_focus(renpy.display.displayable.Displayable.focus)
 
     def play_advance_sound():
-        renpy.music.play(audio.ui_adv, channel='adv', loop=False)
+        renpy.music.play(shock.audio.get("ui_adv"), channel='adv', loop=False)
         return True
 
     def get_non_linear_volume(mixer):
@@ -42,5 +42,14 @@ init python:
             value = 0
 
         return value * 100/40
+
+    # used for navigation screen
+    class MenuItem:
+        def __init__(self, name, action=ShowMenu, args=[], kwargs={}, valid="True"):
+            self.name = name
+            self.action = action
+            self.args = args
+            self.kwargs = kwargs
+            self.valid = valid
 
 define config.say_allow_dismiss = play_advance_sound
