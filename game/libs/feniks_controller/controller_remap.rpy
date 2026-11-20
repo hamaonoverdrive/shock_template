@@ -65,26 +65,6 @@ init python in pad_remap:
         priority=11,
         )
 
-    ## MANUALLY ADDED BY MOI
-    add_custom_event(
-        event_name="execute",
-        title=_("Execute Training{#pad_remap}"),
-        keysyms=["pad_x_press"],
-        category="situational",
-        remappable=True,
-        repeatable=False,
-        priority=61
-    )
-    add_custom_event(
-        event_name="toggle_premium",
-        title=_("Toggle Premium Training{#pad_remap}"),
-        keysyms=["pad_b_press"],
-        category="situational",
-        remappable=True,
-        repeatable=False,
-        priority=61
-    )
-
     ## These next two are used for custom page left/right actions.
     add_custom_event("page_left", _("Page Left{#pad_remap}"),
         ["pad_leftshoulder_press"], "menu", required=True, remappable=True,
@@ -98,6 +78,9 @@ init python in pad_remap:
     add_custom_event("history", _("Open History{#pad_remap}"),
         ["pad_lefttrigger_pos"], "in-game", required=False, remappable=True,
         priority=51)
+    add_custom_event("save_menu", _("Save Game{#pad_remap}"),
+        [], "in-game", required=False, remappable=True,
+        priority=52)
     ## This is a custom event for extra menu actions, like syncing save data
     ## or resetting preferences to the defaults.
     add_custom_event("extra_menu", _("Reset to Default"),

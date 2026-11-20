@@ -252,14 +252,38 @@ screen quick_menu():
             style_prefix "quick"
             style "quick_menu"
 
-            textbutton _("Back") action Rollback()
-            textbutton _("History") action ShowMenu('history')
-            textbutton _("Skip") action Skip() alternate Skip(fast=True, confirm=True)
-            textbutton _("Auto") action Preference("auto-forward", "toggle")
-            textbutton _("Save") action ShowMenu('save')
-            textbutton _("Q.Save") action QuickSave()
-            textbutton _("Q.Load") action QuickLoad()
-            textbutton _("Prefs") action ShowMenu('preferences')
+            if pad_config.is_using_mouse():
+                textbutton _("Back") action Rollback()
+                textbutton _("History") action ShowMenu('history')
+                textbutton _("Skip") action Skip() alternate Skip(fast=True, confirm=True)
+                textbutton _("Auto") action Preference("auto-forward", "toggle")
+                #textbutton _("Save") action ShowMenu('save')
+                # ^ seems redundant with menu button imo
+                #textbutton _("Q.Save") action QuickSave()
+                #textbutton _("Q.Load") action QuickLoad()
+                # ^ no one uses these
+                textbutton _("Menu") action ShowMenu()
+            else:
+                icon_button pad_event "rollback" caption _("Back"):
+                    action Rollback() suffix "small" mkb_icon "key_pgup"
+                icon_button pad_event "history" key_event ["L", "l"] caption _("History"):
+                    action ShowMenu('history') suffix "small" mkb_icon "key_l"
+                icon_button pad_event "toggle_skip" caption _("Skip"):
+                    action Skip() suffix "small" mkb_icon "key_tab"
+                icon_button pad_event "toggle_afm" caption _("Auto"):
+                    action Preference("auto-forward", "toggle") suffix "small" mkb_icon "key_a"
+                    selected preferences.afm_enable
+                #icon_button pad_event "game_save" caption _("Save"):
+                #    action ShowMenu("save") suffix "small" mkb_icon "key_z"
+                icon_button pad_event "game_menu" caption _("Menu"):
+                    action ShowMenu() suffix "small" mkb_icon "key_escape"
+
+        key "a" action Preference("auto-forward", "toggle")
+        key "z" action ShowMenu("save")
+        key "l" action ShowMenu("history")
+
+        ## Ensures this screen is updated for input type changes
+        add game_menu_listener
 
 
 ## This code ensures that the quick_menu screen is displayed in-game, whenever
@@ -283,6 +307,8 @@ style quick_button:
 style quick_button_text:
     properties gui.text_properties("quick_button")
 
+style quick_icon_button is quick_button
+style quick_icon_button_text is quick_button_text
 
 ################################################################################
 ## Main and Game Menu Screens
@@ -299,7 +325,7 @@ screen navigation():
         MenuItem("Start", Start,
                  valid="main_menu"),
         MenuItem("History", args=["history"], 
-                 valid="not main_menu"),
+                 valid="not main_menu and not shock.menu.get('use_split_history')"),
         MenuItem("Save", args=["save"], 
                  valid="not main_menu"),
         MenuItem("Load", args=["load"]),
@@ -357,9 +383,17 @@ screen main_menu():
     frame:
         style "main_menu_frame"
 
-    ## The use statement includes another screen inside this one. The actual
-    ## contents of the main menu are in the navigation screen.
-    use navigation
+    if shock.menu.get("use_split_main_menu"):
+        vbox:
+            yalign 0.5
+            textbutton _("Start") action Start() at shock.anims.get("nav_hover")
+            textbutton _("Preferences") action ShowMenu("preferences") at shock.anims.get("nav_hover")
+            textbutton _("About") action ShowMenu("about") at shock.anims.get("nav_hover")
+            textbutton _("Controls") action ShowMenu("help") at shock.anims.get("nav_hover")
+            if renpy.variant("pc"):
+                textbutton _("Quit") action Quit(confirm=False) at shock.anims.get("nav_hover")
+    else:
+        use navigation
 
     if gui.show_name:
 
@@ -411,7 +445,7 @@ style main_menu_version:
 ## This screen is intended to be used with one or more children, which are
 ## transcluded (placed) inside it.
 
-screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):
+screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, show_footer=True):
 
     style_prefix "game_menu"
 
@@ -481,6 +515,22 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):
 
     if main_menu:
         key "game_menu" action ShowMenu("main_menu")
+
+    ## Show the footer button icons
+    if show_footer:
+        use key_footer():
+            use game_menu_footer_buttons
+
+    ## Ensures this screen is updated for input type changes
+    add game_menu_listener
+
+screen game_menu_footer_buttons():
+    if shock.menu.get("use_null_menu"):
+        $ return_action = ShowMenu("null_menu")
+    else:
+        $ return_action = Return()
+    icon_button kind icn.menu_return suffix "small" action return_action
+    icon_button kind icn.select suffix "small"
 
 screen null_menu():
 
@@ -838,6 +888,21 @@ screen preferences():
                             action Preference("all mute", "toggle")
                             style "mute_all_button"
 
+style pref_common_fixed:
+    xsize config.screen_width-350
+    yfill True
+    align (1.0, 1.0)
+style pref_common_hbox:
+    spacing 65 xalign 0.5 ypos 0.05
+style pref_common_button:
+    size_group 'pref_tabs' yalign 0.5
+style pref_common_button_text:
+    text_align 0.5 xalign 0.5 yalign 0.5
+style pref_tooltip:
+    xalign 0.5 yalign 0.5
+    text_align 0.5 xmaximum 1200
+    outlines [(2, "#000")] color "#FFF"
+    layout "subtitle"
 
 style pref_label is gui_label
 style pref_label_text is gui_label_text
@@ -924,36 +989,108 @@ screen history():
 
     ## Avoid predicting this screen, as it can be very large.
     predict False
+    
+    if shock.menu.get("use_split_history"):
+        # SPLIT HISTORY
 
-    use game_menu(_("History"), scroll=("vpgrid" if gui.history_height else "viewport"), yinitial=1.0, spacing=gui.history_spacing):
+        ## This just has a background to darken the screen
+        add "#000b"
 
-        style_prefix "history"
+        side "c r":
+            style_prefix "history"
+            ## Use a controller viewport for scrolling
+            controller_viewport:
+                mousewheel True draggable True pagekeys True
+                ## It uses the "fast jump" shortcuts to get to the beginning/end
+                ## of the viewport. The d-pad and arrowkeys can be used to scroll.
+                shortcuts True arrowkeys 'not sticks'
+                yinitial 1.0 id "history_vp" which_stick "both"
 
-        for h in _history_list:
+                has vbox
 
-            window:
+                for h in _history_list:
 
-                ## This lays things out properly if history_height is None.
-                has fixed:
-                    yfit True
+                    frame:
+                        has hbox
+                        if h.who:
+                            label h.who style 'history_name':
+                                substitute False
+                                ## Take the color of the who text
+                                ## from the Character, if set
+                                if "color" in h.who_args:
+                                    text_color h.who_args["color"]
+                                xsize gui.history_name_width
+                        else:
+                            null width gui.history_name_width
 
-                if h.who:
+                        $ what = renpy.filter_text_tags(h.what, allow=gui.history_allow_tags)
+                        text what:
+                            substitute False
 
-                    label h.who:
-                        style "history_name"
+                    if h != _history_list[-1]:
+                        null height gui.history_spacing
+
+                if not _history_list:
+                    label _("The dialogue history is empty.")
+
+            side "t c b":
+                ## Include shortcut icons if the player is using a controller
+                if pad_config.is_using_controller():
+                    hbox:
+                        spacing 0
+                        for icn in pad_config.get_icons("scroll_shortcut", "small"):
+                            add icn
+                        add "pad_up_small"
+                else:
+                    null
+                vbar value YScrollValue("history_vp") keyboard_focus False
+                if pad_config.is_using_controller():
+                    hbox:
+                        spacing 0
+                        for icn in pad_config.get_icons("scroll_shortcut", "small"):
+                            add icn
+                        add "pad_down_small"
+                else:
+                    null
+
+        ## And a footer to return to the game
+        use key_footer():
+            icon_button kind icn.back suffix "small"
+
+    else:
+        # INTEGRATED HISTORY
+        # (renpy default)
+        use game_menu(_("History"), scroll=("vpgrid" if gui.history_height else "viewport"), yinitial=1.0, spacing=gui.history_spacing, show_footer=False):
+
+            style_prefix "history"
+
+            for h in _history_list:
+
+                window:
+                    has hbox
+                    ## This lays things out properly if history_height is None.
+                    #has fixed:
+                    #    yfit True
+
+                    if h.who:
+
+                        label h.who:
+                            style "history_name"
+                            substitute False
+
+                            ## Take the color of the who text from the Character, if
+                            ## set.
+                            if "color" in h.who_args:
+                                text_color h.who_args["color"]
+                    else:
+                        null width gui.history_name_width
+
+                    $ what = renpy.filter_text_tags(h.what, allow=gui.history_allow_tags)
+                    text what:
                         substitute False
 
-                        ## Take the color of the who text from the Character, if
-                        ## set.
-                        if "color" in h.who_args:
-                            text_color h.who_args["color"]
-
-                $ what = renpy.filter_text_tags(h.what, allow=gui.history_allow_tags)
-                text what:
-                    substitute False
-
-        if not _history_list:
-            label _("The dialogue history is empty.")
+            if not _history_list:
+                label _("The dialogue history is empty.")
 
 
 ## This determines what tags are allowed to be displayed on the history screen.
@@ -975,9 +1112,8 @@ style history_window:
     ysize gui.history_height
 
 style history_name:
-    xpos gui.history_name_xpos
-    xanchor gui.history_name_xalign
-    ypos gui.history_name_ypos
+    xalign gui.history_name_xalign
+    yalign gui.history_name_yalign
     xsize gui.history_name_width
 
 style history_name_text:
@@ -985,9 +1121,6 @@ style history_name_text:
     textalign gui.history_name_xalign
 
 style history_text:
-    xpos gui.history_text_xpos
-    ypos gui.history_text_ypos
-    xanchor gui.history_text_xalign
     xsize gui.history_text_width
     min_width gui.history_text_width
     textalign gui.history_text_xalign
@@ -998,6 +1131,23 @@ style history_label:
 
 style history_label_text:
     xalign 0.5
+
+style history_frame:
+    xsize gui.history_text_width + gui.history_name_width + 20
+    ysize None
+    background None
+    padding (0,0,0,0)
+
+style history_label:
+    xfill True
+
+style history_side:
+    xysize (gui.history_text_width + gui.history_name_width + 20, 850)
+    align (0.5, 0.5)
+    spacing 10
+
+style history_hbox:
+    spacing 20
 
 
 ## Help screen #################################################################
@@ -1010,132 +1160,294 @@ screen help():
 
     tag menu
 
-    default device = "keyboard"
+    ## Starting device is the last input type
+    default device = "keyboard" if pad_config.is_using_keyboard() else "mouse" if pad_config.is_using_mouse() else "gamepad"
+    default tabs = ["keyboard", "mouse", "gamepad"]
 
-    use game_menu(_("Help"), scroll="viewport"):
+    ## Absorb focusing actions since nothing on this screen is keyboard-focusable
+    ## This shouldn't really be necessary but Ren'Py sometimes highlights a
+    ## button when it shouldn't.
+    key ['focus_left', 'focus_up', 'focus_right', 'focus_down'] action NullAction()
 
-        style_prefix "help"
+    use game_menu(_("Help"), can_focus=False, show_footer=device != "gamepad")
 
-        vbox:
-            spacing 23
+    fixed:
+        style_prefix 'pref_common'
+        hbox:
+            ## The icon shortcut to change pages
+            icon_button caption _("Previous Page") kind icn.page_left:
+                action CycleScreenVariable("device", tabs, reverse=True)
+                icon_only True
+            ## Buttons to change pages; can be clicked with the mouse, but
+            ## not focused with arrow keys
+            textbutton _("Keyboard") keyboard_focus False:
+                action SetScreenVariable("device", "keyboard")
+            textbutton _("Mouse") keyboard_focus False:
+                action SetScreenVariable("device", "mouse")
+            textbutton _("Gamepad") keyboard_focus False:
+                action SetScreenVariable("device", "gamepad")
+            ## The icon shortcut to change pages
+            icon_button caption _("Next Page") kind icn.page_right:
+                action CycleScreenVariable("device", tabs)
+                icon_only True
 
-            hbox:
+    ## A container for all preference screens reusing this one
+    frame:
+        right_margin 70 bottom_margin 200
+        xsize config.screen_width-350-70
+        ysize config.screen_height-220 padding (20, 20)
+        style_prefix 'pref_common' align (1.0, 1.0)
+        has fixed
+        xsize None ysize None
+        yfill False
+        side 'c r':
+            style_prefix 'pref'
+            controller_viewport:
+                id 'help_vp'
+                which_stick "right" focus_scroll False absorb_events True
+                mousewheel True draggable renpy.variant("touch")
+                arrowkeys 'not sticks'
+                has vbox
+                xalign 0.0
+                if device == "keyboard":
+                    use keyboard_help
+                elif device == "mouse":
+                    use mouse_help
+                elif device == "gamepad":
+                    use gamepad_help
+            vbar value YScrollValue("help_vp") keyboard_focus False
 
-                textbutton _("Keyboard") action SetScreenVariable("device", "keyboard")
-                textbutton _("Mouse") action SetScreenVariable("device", "mouse")
-
-                if GamepadExists():
-                    textbutton _("Gamepad") action SetScreenVariable("device", "gamepad")
-
-            if device == "keyboard":
-                use keyboard_help
-            elif device == "mouse":
-                use mouse_help
-            elif device == "gamepad":
-                use gamepad_help
-
+    if device == "gamepad":
+        use key_footer():
+            if GamepadExists():
+                icon_button kind icn.reset suffix "small":
+                    caption _("Remap Controls")
+                    action ShowMenu("controller_remap")
+            use game_menu_footer_buttons
 
 screen keyboard_help():
-
+    style_prefix 'help'
     hbox:
-        label _("Enter")
+        frame:
+            add "key_enter" alt _("Enter") xalign 1.0
         text _("Advances dialogue and activates the interface.")
 
     hbox:
-        label _("Space")
+        frame:
+            add "key_space" alt _("Space") xalign 1.0
         text _("Advances dialogue without selecting choices.")
 
     hbox:
-        label _("Arrow Keys")
+        frame:
+            has hbox
+            spacing 5
+            add "key_left" alt _("Arrow Keys")
+            add "key_up"
+            add "key_right"
+            add "key_down"
         text _("Navigate the interface.")
 
+    ############################################################
+    ## These are custom to this template
     hbox:
-        label _("Escape")
+        frame:
+            has hbox
+            spacing 5
+            add "key_q" alt "Q"
+            add "key_e" alt "E"
+        text _("Switch pages in the interface.")
+    ############################################################
+
+    hbox:
+        frame:
+            add "key_escape" alt _("Escape") xalign 1.0
         text _("Accesses the game menu.")
 
     hbox:
-        label _("Ctrl")
+        frame:
+            add "key_ctrl" alt _("Ctrl") xalign 1.0
         text _("Skips dialogue while held down.")
 
     hbox:
-        label _("Tab")
+        frame:
+            add "key_tab" alt _("Tab") xalign 1.0
         text _("Toggles dialogue skipping.")
 
     hbox:
-        label _("Page Up")
+        frame:
+            add "key_pgup" alt _("Page Up") xalign 1.0
         text _("Rolls back to earlier dialogue.")
 
     hbox:
-        label _("Page Down")
+        frame:
+            add "key_pgdn" alt _("Page Down") xalign 1.0
         text _("Rolls forward to later dialogue.")
 
     hbox:
-        label "H"
+        frame:
+            add "key_h" alt "H" xalign 1.0
         text _("Hides the user interface.")
 
     hbox:
-        label "S"
+        frame:
+            add "key_s" alt "S" xalign 1.0
         text _("Takes a screenshot.")
 
     hbox:
-        label "V"
+        frame:
+            add "key_v" alt "V" xalign 1.0
         text _("Toggles assistive {a=https://www.renpy.org/l/voicing}self-voicing{/a}.")
 
     hbox:
-        label "Shift+A"
+        frame:
+            has hbox
+            spacing 5
+            add "key_shift" alt "Shift+A"
+            text "+" style 'default' yalign 0.5
+            add "key_a"
         text _("Opens the accessibility menu.")
 
 
 screen mouse_help():
-
+    style_prefix 'help'
     hbox:
-        label _("Left Click")
+        frame:
+            add "mouse_left" alt _("Left Click") xalign 1.0
         text _("Advances dialogue and activates the interface.")
 
     hbox:
-        label _("Middle Click")
+        frame:
+            add "mouse_middle" alt _("Middle Click") xalign 1.0
         text _("Hides the user interface.")
 
     hbox:
-        label _("Right Click")
+        frame:
+            add "mouse_right" alt _("Right Click") xalign 1.0
         text _("Accesses the game menu.")
 
     hbox:
-        label _("Mouse Wheel Up")
+        frame:
+            add "mouse_down" alt _("Mouse Wheel Down") xalign 1.0
         text _("Rolls back to earlier dialogue.")
 
     hbox:
-        label _("Mouse Wheel Down")
+        frame:
+            add "mouse_up" alt _("Mouse Wheel Up") xalign 1.0
         text _("Rolls forward to later dialogue.")
 
 
 screen gamepad_help():
 
+    style_prefix 'help'
     hbox:
-        label _("Right Trigger\nA/Bottom Button")
-        text _("Advances dialogue and activates the interface.")
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("dismiss", "", True):
+                add ic alt al
+        text _("Advances dialogue.")
 
     hbox:
-        label _("Left Trigger\nLeft Shoulder")
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("button_select", "", True):
+                add ic alt al
+        text _("Activates the interface.")
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("rollback", "", True):
+                add ic alt al
         text _("Rolls back to earlier dialogue.")
 
     hbox:
-        label _("Right Shoulder")
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("rollforward", "", True):
+                add ic alt al
         text _("Rolls forward to later dialogue.")
 
-    hbox:
-        label _("D-Pad, Sticks")
-        text _("Navigate the interface.")
 
     hbox:
-        label _("Start, Guide, B/Right Button")
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("focus_left", "", True):
+                add ic alt al
+        text _("Navigates the interface.")
+
+    ############################################################
+    ## These are custom to this template
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("page_left", "", True):
+                add ic alt al
+            for ic, al in pad_config.get_icons("page_right", "", True):
+                add ic alt al
+        text _("Switches pages in the interface.")
+    ############################################################
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("game_menu", "", True):
+                add ic alt al
         text _("Accesses the game menu.")
 
     hbox:
-        label _("Y/Top Button")
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("hide_windows", "", True):
+                add ic alt al
         text _("Hides the user interface.")
 
-    textbutton _("Calibrate") action GamepadCalibrate()
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("toggle_afm", "", True):
+                add ic alt al
+        text _("Toggles auto-advance.")
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("toggle_skip", "", True):
+                add ic alt al
+        text _("Toggles dialogue skipping.")
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("screenshot", "", True):
+                add ic alt al
+        text _("Takes a screenshot.")
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("self_voicing", "", True):
+                add ic alt al
+        text _("Toggles assistive {a=https://www.renpy.org/l/voicing}self-voicing{/a}.")
+
+    hbox:
+        frame:
+            has hbox
+            spacing 5
+            for ic, al in pad_config.get_icons("accessibility", "", True):
+                add ic alt al
+        text _("Opens the accessibility menu.")
 
 
 style help_button is gui_button
@@ -1143,6 +1455,18 @@ style help_button_text is gui_button_text
 style help_label is gui_label
 style help_label_text is gui_label_text
 style help_text is gui_text
+
+style help_frame:
+    xsize 350
+    background None
+
+style help_hbox:
+    xalign 1.0
+    spacing 50
+    yalign 0.5
+
+style help_button:
+    xmargin 12
 
 style help_button:
     properties gui.button_properties("help_button")
@@ -1160,6 +1484,10 @@ style help_label_text:
     xalign 1.0
     textalign 1.0
 
+style help_text:
+    min_width 800
+    xmaximum 800
+    yalign 0.5
 
 
 ################################################################################
@@ -1342,7 +1670,7 @@ screen nvl(dialogue, items=None):
                 yinitial 1.0
                 scrollbars shock.nvl.get("scrollbars")
                 mousewheel shock.nvl.get("scrollbars_mousewheel")
-            ysize 1080 - (gui.nvl_borders.padding[1] + gui.nvl_borders.padding[3])
+            ysize 1080 - (gui.nvl_borders.padding[1] + gui.nvl_borders.padding[3]) - 20
 
             vbox:
                 spacing gui.nvl_spacing

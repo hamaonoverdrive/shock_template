@@ -5,15 +5,42 @@
 ## may want to uncomment them when appropriate.
 
 
-## Basics ######################################################################
+## THINGS YOU NEED TO CHANGE###################################################
+
+# If you copy this project directly instead of using it as a template,
+# you will need to change these variables.
 
 ## A human-readable name of the game. This is used to set the default window
 ## title, and shows up in the interface and error reports.
 ##
 ## The _() surrounding the string marks it as eligible for translation.
 
-define config.name = _("default")
+define config.name = _("shock_template")
 
+## A short name for the game used for executables and directories in the built
+## distribution. This must be ASCII-only, and must not contain spaces, colons,
+## or semicolons.
+
+define build.name = "shock_template"
+
+## Save directory ====
+##
+## Controls the platform-specific place Ren'Py will place the save files for
+## this game. The save files will be placed in:
+##
+## Windows: %APPDATA\RenPy\<config.save_directory>
+##
+## Macintosh: $HOME/Library/RenPy/<config.save_directory>
+##
+## Linux: $HOME/.renpy/<config.save_directory>
+##
+## This generally should not be changed, and if it is, should always be a
+## literal string, not an expression.
+
+define config.save_directory = "shock-1780431058"
+
+
+## Basics ######################################################################
 
 ## Determines if the title given above is shown on the main menu screen. Set
 ## this to False to hide the title.
@@ -31,13 +58,6 @@ define config.version = "1.0"
 
 define gui.about = _p("""
 """)
-
-
-## A short name for the game used for executables and directories in the built
-## distribution. This must be ASCII-only, and must not contain spaces, colons,
-## or semicolons.
-
-define build.name = "default"
 
 
 ## Sounds and music ############################################################
@@ -127,23 +147,6 @@ default preferences.text_cps = 0
 ## to 30 being the valid range.
 
 default preferences.afm_time = 15
-
-
-## Save directory ##############################################################
-##
-## Controls the platform-specific place Ren'Py will place the save files for
-## this game. The save files will be placed in:
-##
-## Windows: %APPDATA\RenPy\<config.save_directory>
-##
-## Macintosh: $HOME/Library/RenPy/<config.save_directory>
-##
-## Linux: $HOME/.renpy/<config.save_directory>
-##
-## This generally should not be changed, and if it is, should always be a
-## literal string, not an expression.
-
-define config.save_directory = "default-1780431058"
 
 
 ## Icon ########################################################################

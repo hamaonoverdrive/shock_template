@@ -13,6 +13,19 @@
 ## Leave a comment on the tool page on itch.io if you run into any issues.
 ################################################################################
 
+# this is taken from game_menu
+init -20 python:
+
+    def update_game_menu(old_type, new_type, event):
+        """
+        A function which refreshes the screen if the player switches
+        input type of any kind (to make sure the game menu buttons are disabled
+        for keyboard and controller, and enabled for mouse).
+        """
+        renpy.restart_interaction()
+
+    game_menu_listener = pad_config.EventListener(callbacks=[update_game_menu], on_changed=True)
+
 ################################################################################
 ## SCREEN ACTIONS AND VALUES
 ################################################################################

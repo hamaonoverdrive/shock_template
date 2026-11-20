@@ -1,14 +1,17 @@
 # About this project
 I've been around the block enough times to know that there's always a few things that I always go in and fix in every project I have, so I might as well make a copy/pastable template for it. You can use it too if you want.
 ## Usage
-1. Copy the contents of this project when you want to start a new project, instead of using the button in the renpy sdk.
-2. Open `options.rpy` and **change the `build.name` and `config.name` variables**. *This is required to prevent collisions with other projects using this file*.
-3. Peruse `shock_definitions.rpy` and change your new config variables.
+1. Copy the contents of this project when you want to start a new game and save it to the your launcher's working directory.
+2. Boot up the SDK.
+3. Click "create new project" and, when prompted, select ""
+4. Peruse `shock_definitions.rpy` and change your new config variables.
 ## Key Changes
 - Sensible `.gitignore` file
+    - Note: if you use the "template" feature, you will need to copy this over manually
 - Significant menu reworks
     - Preference screen QoL tweaks
     - Navigation screen rewrite to facilitate animations
+    - Integrated feniksdev's controller support *without* using the EasyGUI template
 - Various new preference parameter
     - Added default style to all buttons that gives them `activate_sound` and `hover_sound` parameters
     - Added `ui_adv` for text advance
@@ -23,6 +26,7 @@ I've been around the block enough times to know that there's always a few things
 If you use this project and do not remove these files, you need to give attribution per their license terms.
 - [FeniksDev controller support expansion](https://feniksdev.itch.io/controller-support-expansion-for-renpy)
 - [kigyodev's improved word counter](https://kigyo.itch.io/renpy-word-counter)
+- [brunoais' gui inspect](https://brunoais.itch.io/renpy-guiinspect)
 - my homebrewed text bloop plugin
 
 ## Future Changes
