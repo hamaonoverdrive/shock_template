@@ -3,7 +3,7 @@ I've been around the block enough times to know that there's always a few things
 ## Usage
 1. Copy the contents of this project when you want to start a new game and save it to the your launcher's working directory.
 2. Boot up the SDK.
-3. Click "create new project" and, when prompted, select ""
+3. Click "create new project" and, when prompted, select "shock_template"
 4. Peruse `shock_definitions.rpy` and change your new config variables.
 ## Key Changes
 - Sensible `.gitignore` file

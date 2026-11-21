@@ -805,104 +805,463 @@ style slot_button_text:
 ##
 ## https://www.renpy.org/doc/html/screen_special.html#preferences
 
-screen preferences():
+screen tabbed_menu(my_pages, page_expression, start_page=None):
+    default pages = [page for page in my_pages.keys()]
+    default titles = [title for title in my_pages.values()]
+    if start_page is None:
+        default page = pages[0]
+    else:
+        default page = start_page
 
-    tag menu
+    fixed:
+        style_prefix 'pref_common'
+        hbox:
+            ## The icon shortcut to change pages
+            icon_button caption _("Previous Page") kind icn.page_left:
+                action CycleScreenVariable("page", pages, reverse=True)
+                icon_only True
+            ## Buttons to change pages; can be clicked with the mouse, but
+            ## not focused with arrow keys
+            for page_id, title in my_pages.items():
+                textbutton title keyboard_focus False:
+                    action SetScreenVariable("page", page_id)
 
-    use game_menu(_("Preferences"), scroll="viewport"):
+            ## The icon shortcut to change pages
+            icon_button caption _("Next Page") kind icn.page_right:
+                action CycleScreenVariable("page", pages)
+                icon_only True
 
-        vbox:
+    ## A container for all preference screens reusing this one
+    frame:
+        right_margin 70 bottom_margin 200
+        xsize config.screen_width-350-70
+        ysize config.screen_height-220 padding (20, 20)
+        style_prefix 'pref_common' align (1.0, 1.0)
+        has fixed
+        xsize None ysize None
+        yfill False
 
-            hbox:
-                box_wrap True
+        side 'c r':
+            style_prefix 'pref'
+            ## This uses the controller viewport to be navigable via keyboard
+            ## or controller.
+            controller_viewport:
+                id 'tab_vp'
+                ## The scroll style tries to keep the focused item in the center
+                ## It also takes the focus_displayable earlier to better animate
+                ## it while the viewport is scrolling.
+                vscroll_style "center" #focus_displayables f1
+                ## How long to animate the scroll movement (horizontally, vertically)
+                scroll_delay (0.1, 0.1)
+                ## This ensures the penalty for items that are up and left/right
+                ## from the currently selected item aren't penalized too harshly
+                ## for it, since we generally want to select the row above/below
+                ## the current one.
+                penalty 64
+                ## If the viewport can be dragged, it tends to grab focus when
+                ## using the arrow keys or controller to navigate, which
+                ## is undesirable unless the user has a touch device.
+                mousewheel True draggable renpy.variant("touch")
+                has vbox
+                xalign 0.0
 
-                if renpy.variant("pc") or renpy.variant("web"):
+                use expression page_expression
 
-                    vbox:
-                        style_prefix "radio"
-                        label _("Display")
-                        textbutton _("Window") action Preference("display", "any window")
-                        textbutton _("Fullscreen") action Preference("display", "fullscreen")
+            ## A scrollbar for mouse or touch users; keyboard_focus is False
+            ## so it can't be navigated to with the arrow keys or controller.
+            vbar value YScrollValue("tab_vp") keyboard_focus False
 
-                vbox:
-                    style_prefix "check"
-                    label _("Skip")
-                    textbutton _("Unseen Text") action Preference("skip", "toggle")
-                    textbutton _("After Choices") action Preference("after choices", "toggle")
-                    textbutton _("Transitions") action InvertSelected(Preference("transitions", "toggle"))
+    $ tooltip = GetTooltip()
+    if tooltip:
+        fixed:
+            xsize config.screen_width-350-70 xalign 1.0 style 'default'
+            ycenter 0.88
+            text tooltip style 'pref_tooltip'
 
-                ## Additional vboxes of type "radio_pref" or "check_pref" can be
-                ## added here, to add additional creator-defined preferences.
+        hbox:
+            style_prefix "slider"
+            box_wrap True
 
-            null height (4 * gui.pref_spacing)
-
-            hbox:
-                style_prefix "slider"
-                box_wrap True
-
-                vbox:
-
-                    if preferences.text_cps != 0:
-                        label _("Text Speed") + "\n [int(preferences.text_cps)] " + _("characters/second")
-                    else:
-                        label _("Text Speed") + "\n" + _("Instant")
-
-                    bar value Preference("text speed")
-
-                    label _("Auto-Forward Time")
-
-                    bar value Preference("auto-forward time")
-
-                vbox:
-
-                    if config.has_music:
-                        label _("Music Volume") + " [int(get_non_linear_volume('music volume'))]%"
-
-                        hbox:
-                            bar value Preference("music volume")
-
-                    if config.has_sound:
-
-                        label _("Sound Volume") + " [int(get_non_linear_volume('sound volume'))]%"
-
-                        hbox:
-                            bar value Preference("sound volume")
-
-                            if config.sample_sound:
-                                textbutton _("Test") action Play("sound", config.sample_sound)
-
-
-                    if config.has_voice:
-                        label _("Voice Volume") + " [int(get_non_linear_volume('voice volume'))]%"
-
-                        hbox:
-                            bar value Preference("voice volume")
-
-                            if config.sample_voice:
-                                textbutton _("Test") action Play("voice", config.sample_voice)
-
-                    if config.has_music or config.has_sound or config.has_voice:
-                        null height gui.pref_spacing
-
-                        textbutton _("Mute All"):
-                            action Preference("all mute", "toggle")
-                            style "mute_all_button"
+style pref_common_window:
+    xsize config.screen_width-350
 
 style pref_common_fixed:
     xsize config.screen_width-350
     yfill True
     align (1.0, 1.0)
+
 style pref_common_hbox:
     spacing 65 xalign 0.5 ypos 0.05
+
 style pref_common_button:
     size_group 'pref_tabs' yalign 0.5
+
 style pref_common_button_text:
     text_align 0.5 xalign 0.5 yalign 0.5
+
 style pref_tooltip:
     xalign 0.5 yalign 0.5
     text_align 0.5 xmaximum 1200
     outlines [(2, "#000")] color "#FFF"
     layout "subtitle"
+
+screen preferences():
+
+    default page = "pref_display"
+
+    tag menu
+
+    use game_menu(_("Preferences"), scroll="viewport")
+
+    use tabbed_menu({
+        "pref_display": _("Display\n& Gameplay"),
+        "pref_audio": _("Audio"),
+        "pref_controls": _("Controls"),
+        "pref_accessibility": _("Accessibility")
+    }, page, page)
+
+
+screen pref_display():
+    if renpy.variant("pc") or renpy.variant("web"):
+        # Only need fullscreen/windowed on desktop and web builds
+        hbox:
+            style_prefix "radio"
+            label _("Display")
+            textbutton _("Window"):
+                # Ensures this button is selected when
+                # not in fullscreen.
+                selected not preferences.fullscreen
+                default_focus 10
+                action Preference("display", "window")
+                tooltip _("Display the game in a window")
+            null width 50
+            textbutton _("Fullscreen"):
+                action Preference("display", "fullscreen")
+                tooltip _("Display the game in fullscreen")
+
+    hbox:
+        style_prefix "radio"
+        label _("Skip Unseen Text")
+        textbutton _("ON"):
+            default_focus 5
+            action Preference("skip", "all")
+            tooltip _("Skip all text, regardless of whether it's been seen before")
+        null width 50
+        textbutton _("OFF"):
+            action Preference("skip", "seen")
+            tooltip _("Only skip text that has been seen before")
+
+    hbox:
+        style_prefix "radio"
+        label _("Skip After Choices")
+        textbutton _("ON"):
+            action Preference("after choices", "skip")
+            tooltip _("Keep skipping after making a choice")
+        null width 50
+        textbutton _("OFF"):
+            action Preference("after choices", "stop")
+            tooltip _("Stop skipping upon reaching a choice")
+
+    hbox:
+        vbox:
+            spacing 0
+            label _("Text Speed")
+            if preferences.text_cps != 0:
+                if preferences.text_cps != 1:
+                    text "[int(preferences.text_cps)] " + _("characters/second") xalign 1.0
+                else:
+                    text "[int(preferences.text_cps)] " + _("character/second") xalign 1.0
+            else:
+                text _("Instant") xalign 1.0
+        text _("MIN")
+        ## Controller bars will be automatically selected as soon
+        ## as it's focused, unlike default bars which must be
+        ## "clicked into"/out of.
+        controller_bar value Preference("text speed") default_focus 2:
+            tooltip _("Adjust the speed at which text is displayed")
+        text _("MAX")
+
+    hbox:
+        label _("Auto-Forward Delay")
+        text _("MIN")
+        controller_bar value Preference("auto-forward time"):
+            tooltip _("Adjust how long of a delay there is before text auto-advances")
+        text _("MAX")
+
+    hbox:
+        style_prefix "radio"
+        label _("Transitions")
+        textbutton _("ON"):
+            action Preference("transitions", "all")
+            tooltip _("Transitions will play")
+        null width 50
+        textbutton _("OFF"):
+            action Preference("transitions", "none")
+            tooltip _("Transitions will not play")
+
+screen pref_audio():
+    if config.has_music or config.has_sound or config.has_voice:
+        hbox:
+            style_prefix "radio"
+            label _("Mute All")
+            textbutton _("MUTED") action Preference("all mute", "enable"):
+                default_focus 10
+                tooltip _("Mute all audio channels")
+            null width 50
+            textbutton _("NOT MUTED") action Preference("all mute", "disable"):
+                tooltip _("Unmute all audio channels")
+
+        hbox:
+            vbox:
+                spacing 0
+                label _("Main Volume")
+                text "[int(get_non_linear_volume('main volume'))]%" xalign 1.0
+            text _("MIN")
+            controller_bar value Preference("main volume"):
+                tooltip _("Adjust the overall volume of the game")
+            text _("MAX")
+
+    if config.has_music:
+        hbox:
+            vbox:
+                spacing 0
+                label _("Music Volume")
+                text "[int(get_non_linear_volume('music volume'))]%" xalign 1.0
+            text _("MIN")
+            controller_bar value Preference("music volume") default_focus 8:
+                tooltip _("Adjust the volume of the music")
+            text _("MAX")
+
+    if config.has_sound:
+        hbox:
+            vbox:
+                spacing 0
+                label _("Sound Volume")
+                text "[int(get_non_linear_volume('sound volume'))]%" xalign 1.0
+            text _("MIN")
+            controller_bar value Preference("sound volume") default_focus 6:
+                tooltip _("Adjust the volume of sound effects")
+            text _("MAX")
+            if config.sample_sound:
+                textbutton _("Test") action Play("sound", config.sample_sound)
+
+
+    if config.has_voice:
+        hbox:
+            vbox:
+                spacing 0
+                label _("Voice Volume")
+                text "[int(get_non_linear_volume('voice volume'))]%" xalign 1.0
+            text _("MIN")
+            controller_bar value Preference("voice volume") default_focus 4:
+                tooltip _("Adjust the volume of voiceover")
+            text _("MAX")
+            if config.sample_voice:
+                textbutton _("Test") action Play("voice", config.sample_voice)
+
+
+screen pref_controls():
+    hbox:
+        style_prefix "radio" spacing 25
+        label _("Icon Set")
+        textbutton "←":
+            ## These buttons aren't focusable, because a special
+            ## action is set up below to make it so focusing
+            ## the icon set and hitting left/right cycles the
+            ## available options.
+            style 'pref_arrow' keyboard_focus False
+            action CycleControllerLayout(reverse=True)
+        button:
+            style 'default'
+            id 'pick_icons'
+            alt _("Choose a button icon set {}".format(pad_config.get_alt_text(["a", "b", "l1", "l2"], is_event=False, alt_tag=False)))
+            tooltip _("Choose a button icon set")
+            action NullAction() default_focus 15
+            has hbox
+            spacing 15 first_spacing 15
+            add "pad_a"
+            add "pad_b"
+            add "pad_l1"
+            add "pad_l2"
+        textbutton "→":
+            style 'pref_arrow' keyboard_focus False
+            action CycleControllerLayout(reverse=False)
+
+    hbox:
+        style_prefix "radio"
+        label _("Hold to Skip")
+        textbutton _("ON") default_focus 10:
+            action [SetField(persistent, "hold_to_skip", True),
+                Function(pad_remap.update_keymap)]
+            tooltip _("Hold down the skip button to skip text")
+        null width 50
+        textbutton _("OFF"):
+            action [SetField(persistent, "hold_to_skip", False),
+                Function(pad_remap.update_keymap)]
+            tooltip _("Press the skip button to toggle skipping on and off again")
+
+    ## If you have drag and drop functionality, you may
+    ## want these options
+    # hbox:
+    #     style_prefix "radio"
+    #     label _("Hold to Drag")
+    #     textbutton _("ON"):
+    #         action [SetField(persistent, "hold_to_drag", True),
+    #             Function(pad_remap.update_keymap)]
+    #         tooltip _("Hold down the drag button to drag around items")
+    #     null width 50
+    #     textbutton _("OFF"):
+    #         action [SetField(persistent, "hold_to_drag", False),
+    #             Function(pad_remap.update_keymap)]
+    #         tooltip _("Press the drag button to toggle picking up and releasing a draggable item")
+
+    hbox:
+        style_prefix "radio"
+        label _("Left stick x-axis")
+        textbutton _("NORMAL"):
+            ## SetStickInversion, StickDeadzoneAdjustment, and
+            ## StickSensitivityAdjustment are all custom
+            ## made actions and bar values.
+            action SetStickInversion("left", "x", False)
+        null width 50
+        textbutton _("INVERTED"):
+            action SetStickInversion("left", "x", True)
+
+    hbox:
+        style_prefix "radio"
+        label _("Left stick y-axis")
+        textbutton _("NORMAL"):
+            action SetStickInversion("left", "y", False)
+        null width 50
+        textbutton _("INVERTED"):
+            action SetStickInversion("left", "y", True)
+
+    hbox:
+        label _("Left stick dead zone")
+        text _("MIN")
+        controller_bar value StickDeadzoneAdjustment("left")
+        text _("MAX")
+
+    hbox:
+        label _("Left stick sensitivity")
+        text _("LOW")
+        controller_bar value StickSensitivityAdjustment("left")
+        text _("HIGH")
+
+    hbox:
+        style_prefix "radio"
+        label _("Right stick x-axis")
+        textbutton _("NORMAL"):
+            action SetStickInversion("right", "x", False)
+        null width 50
+        textbutton _("INVERTED"):
+            action SetStickInversion("right", "x", True)
+
+    hbox:
+        style_prefix "radio"
+        label _("Right stick y-axis")
+        textbutton _("NORMAL"):
+            action SetStickInversion("right", "y", False)
+        null width 50
+        textbutton _("INVERTED"):
+            action SetStickInversion("right", "y", True)
+
+    hbox:
+        label _("Right stick dead zone")
+        text _("MIN")
+        controller_bar value StickDeadzoneAdjustment("right")
+        text _("MAX")
+
+    hbox:
+        label _("Right stick sensitivity")
+        text _("LOW")
+        controller_bar value StickSensitivityAdjustment("right")
+        text _("HIGH")
+
+style pref_arrow:
+    is default
+style pref_arrow_text:
+    size 70 outlines [(2, "#000")] color "#FFF"
+    xalign 0.5 yalign 0.5 prefer_emoji False
+    hover_color gui.hover_color
+
+screen pref_accessibility():
+    hbox:
+        style_prefix "radio"
+        label _("Font Override")
+        textbutton _("Default") default_focus 10:
+            action Preference("font transform", None)
+            tooltip _("Use the default font")
+        null width 50
+        textbutton _("DejaVu Sans"):
+            action Preference("font transform", "dejavusans")
+            tooltip _("Use the DejaVu Sans font")
+    hbox:
+        style_prefix 'radio'
+        label ""
+        textbutton _("Opendyslexic"):
+            action Preference("font transform", "opendyslexic")
+            tooltip _("Use the OpenDyslexic font")
+
+    hbox:
+        label _("Text Size Scaling")
+        text _("MIN")
+        controller_bar value Preference("font size"):
+            tooltip _("Adjust the size of the text")
+        text _("MAX")
+
+    hbox:
+        label _("Line Space Scaling")
+        text _("MIN")
+        controller_bar value Preference("font line spacing"):
+            tooltip _("Adjust the space between lines of text")
+        text _("MAX")
+
+    hbox:
+        style_prefix 'radio'
+        label _("High Contrast Text")
+        textbutton _("ON"):
+            action Preference("high contrast text", "enable")
+            tooltip _("Use high contrast text")
+        null width 200
+        textbutton _("OFF"):
+            action Preference("high contrast text", "disable")
+            tooltip _("Turn high contrast text off")
+
+    hbox:
+        style_prefix 'radio'
+        label _("Self-Voicing")
+        textbutton _("Text-to-speech"):
+            action Preference("self voicing", "enable")
+            tooltip _("Enable text-to-speech")
+        null width 30
+        textbutton _("Clipboard"):
+            action Preference("clipboard voicing", "enable")
+            tooltip _("Copy readable text to the clipboard, for use with external screen reader software")
+    hbox:
+        style_prefix 'radio'
+        label ""
+        textbutton _("Debug"):
+            action Preference("debug voicing", "enable")
+            tooltip _("Display a debug message with the text self-voicing would use")
+        null width 200
+        textbutton _("OFF"):
+            action Preference("self voicing", "disable")
+            tooltip _("Turn self-voicing off")
+
+    hbox:
+        label _("Voice Volume")
+        text _("MIN")
+        controller_bar value Preference("voice volume"):
+            tooltip _("Adjust the volume of voiceover")
+        text _("MAX")
+
+    hbox:
+        label _("Self-Voicing Volume Drop")
+        text _("MIN")
+        controller_bar value Preference("self voicing volume drop"):
+            tooltip _("Adjust how much to drop the volume of other channels while self-voicing is enabled")
+        text _("MAX")
 
 style pref_label is gui_label
 style pref_label_text is gui_label_text
@@ -913,12 +1272,14 @@ style radio_label_text is pref_label_text
 style radio_button is gui_button
 style radio_button_text is gui_button_text
 style radio_vbox is pref_vbox
+style radio_hbox is pref_hbox
 
 style check_label is pref_label
 style check_label_text is pref_label_text
 style check_button is gui_button
 style check_button_text is gui_button_text
 style check_vbox is pref_vbox
+style check_hbox is pref_hbox
 
 style slider_label is pref_label
 style slider_label_text is pref_label_text
@@ -930,50 +1291,51 @@ style slider_pref_vbox is pref_vbox
 style mute_all_button is check_button
 style mute_all_button_text is check_button_text
 
+style pref_side:
+    xfill True
+    yfill True
+    align (1.0, 0.5)
+    spacing gui.pref_spacing
+
 style pref_label:
-    top_margin gui.pref_spacing
-    bottom_margin 3
+    top_margin 15
+    bottom_margin 15
+    xsize 450
 
 style pref_label_text:
+    xalign 1.0 text_align 1.0
     yalign 1.0
 
-style pref_vbox:
-    xsize 338
+style pref_hbox:
+    first_spacing 40
+    spacing 25
+    xmaximum 1350
+    box_wrap True
+    box_wrap_spacing 25
 
-style radio_vbox:
-    spacing gui.pref_button_spacing
+style pref_vbox:
+    spacing gui.pref_spacing
 
 style radio_button:
-    properties gui.button_properties("radio_button")
     foreground "gui/button/radio_[prefix_]foreground.png"
-
-style radio_button_text:
-    properties gui.text_properties("radio_button")
-
-style check_vbox:
-    spacing gui.pref_button_spacing
+    padding (35, 6, 6, 6)
+    yalign 0.5
 
 style check_button:
-    properties gui.button_properties("check_button")
     foreground "gui/button/check_[prefix_]foreground.png"
-
-style check_button_text:
-    properties gui.text_properties("check_button")
-
-style slider_slider:
-    xsize 525
-
-style slider_button:
-    properties gui.button_properties("slider_button")
+    padding (35, 6, 6, 6)
     yalign 0.5
-    left_margin 15
 
-style slider_button_text:
-    properties gui.text_properties("slider_button")
+style pref_bar:
+    is slider
+    yalign 0.5
+    xsize 640
 
-style slider_vbox:
-    xsize 675
-
+style pref_text:
+    yalign 0.5
+    size 26
+    min_width 70
+    text_align 0.5 xalign 0.5
 
 ## History screen ##############################################################
 ##
@@ -1161,7 +1523,7 @@ screen help():
     tag menu
 
     ## Starting device is the last input type
-    default device = "keyboard" if pad_config.is_using_keyboard() else "mouse" if pad_config.is_using_mouse() else "gamepad"
+    default page = "keyboard" if pad_config.is_using_keyboard() else "mouse" if pad_config.is_using_mouse() else "gamepad"
     default tabs = ["keyboard", "mouse", "gamepad"]
 
     ## Absorb focusing actions since nothing on this screen is keyboard-focusable
@@ -1169,55 +1531,15 @@ screen help():
     ## button when it shouldn't.
     key ['focus_left', 'focus_up', 'focus_right', 'focus_down'] action NullAction()
 
-    use game_menu(_("Help"), can_focus=False, show_footer=device != "gamepad")
+    use game_menu(_("Help"), can_focus=False, show_footer=page != "gamepad")
 
-    fixed:
-        style_prefix 'pref_common'
-        hbox:
-            ## The icon shortcut to change pages
-            icon_button caption _("Previous Page") kind icn.page_left:
-                action CycleScreenVariable("device", tabs, reverse=True)
-                icon_only True
-            ## Buttons to change pages; can be clicked with the mouse, but
-            ## not focused with arrow keys
-            textbutton _("Keyboard") keyboard_focus False:
-                action SetScreenVariable("device", "keyboard")
-            textbutton _("Mouse") keyboard_focus False:
-                action SetScreenVariable("device", "mouse")
-            textbutton _("Gamepad") keyboard_focus False:
-                action SetScreenVariable("device", "gamepad")
-            ## The icon shortcut to change pages
-            icon_button caption _("Next Page") kind icn.page_right:
-                action CycleScreenVariable("device", tabs)
-                icon_only True
+    use tabbed_menu({
+        "keyboard": _("Keyboard"),
+        "mouse": _("Mouse"),
+        "gamepad": _("Gamepad")
+    }, f"{page}_help", page)
 
-    ## A container for all preference screens reusing this one
-    frame:
-        right_margin 70 bottom_margin 200
-        xsize config.screen_width-350-70
-        ysize config.screen_height-220 padding (20, 20)
-        style_prefix 'pref_common' align (1.0, 1.0)
-        has fixed
-        xsize None ysize None
-        yfill False
-        side 'c r':
-            style_prefix 'pref'
-            controller_viewport:
-                id 'help_vp'
-                which_stick "right" focus_scroll False absorb_events True
-                mousewheel True draggable renpy.variant("touch")
-                arrowkeys 'not sticks'
-                has vbox
-                xalign 0.0
-                if device == "keyboard":
-                    use keyboard_help
-                elif device == "mouse":
-                    use mouse_help
-                elif device == "gamepad":
-                    use gamepad_help
-            vbar value YScrollValue("help_vp") keyboard_focus False
-
-    if device == "gamepad":
+    if page == "gamepad":
         use key_footer():
             if GamepadExists():
                 icon_button kind icn.reset suffix "small":
