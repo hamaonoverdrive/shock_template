@@ -2,21 +2,22 @@ init offset = -200
 
 init python:
     class PreferencesStorage:
-        def __init__(self, animation = False):
-            self.animation = animation
+        def __init__(self, defaults = None):
+            self.defaults = defaults
 
         def get(self, attr):
             if hasattr(self, attr):
                 return getattr(self, attr)
             else:
-                if not self.animation:
-                    return None
-                else:
-                    return null_transform
+                match self.defaults:
+                    case "animation":
+                        return null_transform
+                    case _:
+                        return None
 
     shock = PreferencesStorage()
     shock.audio = PreferencesStorage()
-    shock.anims = PreferencesStorage(True)
+    shock.anims = PreferencesStorage("animation")
     shock.nvl = PreferencesStorage()
     shock.menu = PreferencesStorage()
 

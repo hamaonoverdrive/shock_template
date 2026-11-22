@@ -89,7 +89,7 @@ define gui.title_text_size = 75
 ## The images used for the main and game menus.
 define gui.main_menu_background = "gui/main_menu.png"
 define gui.game_menu_background = "gui/game_menu.png"
-
+define gui.navigation_menu_background = "gui/navigation_menu.png"
 
 ## Dialogue ####################################################################
 ##
@@ -246,6 +246,9 @@ define gui.file_slot_rows = 2
 ## These variables control the positioning and spacing of various user interface
 ## elements.
 
+## The horizontal width of the navigation frame
+define gui.navigation_width = 420
+
 ## The position of the left side of the navigation buttons, relative to the left
 ## side of the screen.
 define gui.navigation_xpos = 60
@@ -297,6 +300,10 @@ define gui.notify_frame_borders = Borders(24, 8, 60, 8)
 
 ## Should frame backgrounds be tiled?
 define gui.frame_tile = False
+
+## Used for the selector on the prefs screen
+define gui.preferences_selector_frame = Frame("gui/white_square.png", 6, 6)
+define gui.preferences_selector_frame_padding = (10,8)
 
 
 ## Bars, Scrollbars, and Sliders ###############################################

@@ -107,7 +107,7 @@ init -500 python in pad_config:
     ############################################################################
     ## Screens that have their focus saved and restored when entering and
     ## leaving them.
-    RESTORE_FOCUS_SCREENS = [ "main_menu", "null_menu", "game_menu", "controller_remap" ]
+    RESTORE_FOCUS_SCREENS = [ "null_menu" ]
 
     ## Optional. A list of callbacks that will be run if the focus type
     ## changes between keyboard, controller, and mouse. It will be passed

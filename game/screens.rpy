@@ -252,7 +252,7 @@ screen quick_menu():
             style_prefix "quick"
             style "quick_menu"
 
-            if pad_config.is_using_mouse():
+            if pad_config.is_using_mouse() or not shock.menu.get("show_quick_key_hints"):
                 textbutton _("Back") action Rollback()
                 textbutton _("History") action ShowMenu('history')
                 textbutton _("Skip") action Skip() alternate Skip(fast=True, confirm=True)
@@ -319,7 +319,7 @@ style quick_icon_button_text is quick_button_text
 ## This screen is included in the main and game menus, and provides navigation
 ## to other menus, and to start the game.
 
-screen navigation():
+screen navigation(can_focus=True, show_return=True):
 
     default menu_items = [
         MenuItem("Start", Start,
@@ -341,17 +341,41 @@ screen navigation():
                  valid="renpy.variant('pc')")
     ]
 
-    vbox:
-        style_prefix "navigation"
+    frame:
+        background gui.navigation_menu_background
+        yfill True
+        at shock.anims.get("nav_frame_show")
+        vbox:
+            style_prefix "navigation"
 
-        xpos gui.navigation_xpos
-        yalign 0.5
+            xpos gui.navigation_xpos
+            yalign 0.5
 
-        spacing gui.navigation_spacing
+            spacing gui.navigation_spacing
 
-        for item in menu_items:
-            if eval(item.valid):
-                textbutton _(item.name) action [item.action(*item.args, **item.kwargs), Function(fix_click)] at shock.anims.get("nav_hover")
+            $ offset = 0
+            for i in range(len(menu_items)):
+                $ item = menu_items[i]
+                if eval(item.valid):
+                    textbutton _(item.name):
+                        action [item.action(*item.args, **item.kwargs), Function(fix_click)]
+                        default_focus i + offset == 0 and can_focus
+                        keyboard_focus can_focus or not shock.menu.get("use_null_menu")
+                        sensitive can_focus or pad_config.is_using_mouse() or not shock.menu.get("use_null_menu")
+                        id item.name
+                        at shock.anims.get("nav_hover")
+                else:
+                   $  offset -= 1
+
+        if show_return:
+            textbutton _("Return"):
+                style "return_button"
+                yalign 1.0
+                keyboard_focus can_focus or not shock.menu.get("use_null_menu")
+                sensitive can_focus or pad_config.is_using_mouse() or not shock.menu.get("use_null_menu")
+
+                action Return()
+                at shock.anims.get("nav_hover")
 
 
 
@@ -379,21 +403,21 @@ screen main_menu():
 
     add gui.main_menu_background
 
-    ## This empty frame darkens the main menu.
-    frame:
-        style "main_menu_frame"
-
     if shock.menu.get("use_split_main_menu"):
+        ## This empty frame darkens the main menu.
+        frame:
+            style "main_menu_frame"
+
         vbox:
             yalign 0.5
-            textbutton _("Start") action Start() at shock.anims.get("nav_hover")
-            textbutton _("Preferences") action ShowMenu("preferences") at shock.anims.get("nav_hover")
-            textbutton _("About") action ShowMenu("about") at shock.anims.get("nav_hover")
-            textbutton _("Controls") action ShowMenu("help") at shock.anims.get("nav_hover")
+            textbutton _("Start") action Start() id "start" at shock.anims.get("nav_hover")
+            textbutton _("Preferences") action ShowMenu("preferences") id "prefs" at shock.anims.get("nav_hover")
+            textbutton _("About") action ShowMenu("about") id "about" at shock.anims.get("nav_hover")
+            textbutton _("Controls") action ShowMenu("help") id "controls" at shock.anims.get("nav_hover")
             if renpy.variant("pc"):
-                textbutton _("Quit") action Quit(confirm=False) at shock.anims.get("nav_hover")
+                textbutton _("Quit") action Quit(confirm=False) id "pc" at shock.anims.get("nav_hover")
     else:
-        use navigation
+        use navigation(show_return=False)
 
     if gui.show_name:
 
@@ -468,19 +492,22 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
 
                 if scroll == "viewport":
 
-                    viewport:
-                        yinitial yinitial
-                        scrollbars "vertical"
-                        mousewheel True
-                        draggable True
-                        pagekeys True
+                    side 'c r':
+                        controller_viewport:
+                            id "game_menu_vp"
+                            vscroll_style "center"
+                            draggable renpy.variant("touch")
+                            yinitial yinitial
+                            scrollbars "vertical"
+                            mousewheel True
+                            pagekeys True
+                            arrowkeys "not sticks"
 
-                        side_yfill True
+                            vbox:
+                                spacing spacing
 
-                        vbox:
-                            spacing spacing
-
-                            transclude
+                                transclude
+                        vbar value YScrollValue("game_menu_vp") keyboard_focus False
 
                 elif scroll == "vpgrid":
 
@@ -503,15 +530,14 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
 
                     transclude
 
-    use navigation
+    use navigation(can_focus=False)
 
-    textbutton _("Return"):
-        style "return_button"
-        at shock.anims.nav_hover
-
-        action Return()
-
-    label title
+    #label title
+    truncate_text title:
+        style "game_menu_label"
+        reset_size_on_overflow True
+        xsize gui.navigation_width - gui.navigation_xpos * 2 - 10
+        shrink_to_fit gui.text_size # smallest allowed font size
 
     if main_menu:
         key "game_menu" action ShowMenu("main_menu")
@@ -540,25 +566,10 @@ screen null_menu():
 
     if main_menu:
         add gui.main_menu_background
-    else:
-        add gui.game_menu_background
-
-    frame:
-        style "game_menu_outer_frame"
-
-        hbox:
-
-            ## Reserve space for the navigation section.
-            frame:
-                style "game_menu_navigation_frame"
 
     use navigation
 
-    textbutton _("Return"):
-        style "return_button"
-        at shock.anims.nav_hover
-
-        action Return()
+    key "game_menu" action Return()
 
 
 style game_menu_outer_frame is empty
@@ -574,14 +585,8 @@ style game_menu_label_text is gui_label_text
 style return_button is navigation_button
 style return_button_text is navigation_button_text
 
-style game_menu_outer_frame:
-    bottom_padding 45
-    top_padding 180
-
-    background "gui/overlay/game_menu.png"
-
 style game_menu_navigation_frame:
-    xsize 420
+    xsize gui.navigation_width
     yfill True
 
 style game_menu_content_frame:
@@ -599,7 +604,7 @@ style game_menu_side:
     spacing 15
 
 style game_menu_label:
-    xpos 75
+    xpos gui.navigation_xpos
     ysize 180
 
 style game_menu_label_text:
@@ -611,7 +616,124 @@ style return_button:
     xpos gui.navigation_xpos
     yalign 1.0
     yoffset -45
+default focus_level = 0
+screen tabbed_menu(my_pages, page_expression, use_cursor=False, arrowkeys=None):
+    default pages = [page for page in my_pages.keys()]
+    default titles = [title for title in my_pages.values()]
 
+    default f1 = FocusDisplayable(gui.preferences_selector_frame,
+        hide_on_mouse=True, padding=gui.preferences_selector_frame_padding,
+        active_area=(350, 200, config.screen_width-350, config.screen_height-200))
+
+    fixed:
+        style_prefix 'tabbed_common'
+        hbox:
+            ## The icon shortcut to change pages
+            icon_button caption _("Previous Page") kind icn.page_left:
+                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages, reverse=True), Function(renpy.restart_interaction)]
+                icon_only True
+            ## Buttons to change pages; can be clicked with the mouse, but
+            ## not focused with arrow keys
+            for page_id, title in my_pages.items():
+                textbutton title keyboard_focus False:
+                    action [IncrementVariable("focus_level", 15), SetScreenVariable("page", page_id)]
+
+            ## The icon shortcut to change pages
+            icon_button caption _("Next Page") kind icn.page_right:
+                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages), Function(renpy.restart_interaction)]
+                icon_only True
+
+    ## A container for all preference screens reusing this one
+    frame:
+        right_margin 70 bottom_margin 200
+        xsize config.screen_width-350-70
+        ysize config.screen_height-220 padding (20, 20)
+        style_prefix 'tabbed_common' align (1.0, 1.0)
+        has fixed
+        xsize None ysize None
+        yfill False
+
+        side 'c r':
+            style_prefix 'tabbed'
+            ## This uses the controller viewport to be navigable via keyboard
+            ## or controller.
+            controller_viewport:
+                id 'tab_vp'
+                ## The scroll style tries to keep the focused item in the center
+                ## It also takes the focus_displayable earlier to better animate
+                ## it while the viewport is scrolling.
+                vscroll_style "center" 
+                if use_cursor:
+                    focus_displayables f1
+                ## How long to animate the scroll movement (horizontally, vertically)
+                scroll_delay (0.1, 0.1)
+                ## This ensures the penalty for items that are up and left/right
+                ## from the currently selected item aren't penalized too harshly
+                ## for it, since we generally want to select the row above/below
+                ## the current one.
+                penalty 24
+                ## If the viewport can be dragged, it tends to grab focus when
+                ## using the arrow keys or controller to navigate, which
+                ## is undesirable unless the user has a touch device.
+                mousewheel True draggable renpy.variant("touch")
+                if arrowkeys is not None:
+                    arrowkeys arrowkeys
+                has vbox
+
+                use expression page_expression
+
+            ## A scrollbar for mouse or touch users; keyboard_focus is False
+            ## so it can't be navigated to with the arrow keys or controller.
+            vbar value YScrollValue("tab_vp"):
+                keyboard_focus False
+                default_focus False
+
+    $ tooltip = GetTooltip()
+    if tooltip:
+        fixed:
+            xsize config.screen_width-350-70 xalign 1.0 style 'default'
+            ycenter 0.88
+            text tooltip style 'tabbed_tooltip'
+
+        hbox:
+            style_prefix "slider"
+            box_wrap True
+
+    if use_cursor:
+        add f1
+
+style tabbed_label is pref_label
+style tabbed_label_text is pref_label_text
+style tabbed_side is pref_side
+style tabbed_label is pref_label
+style tabbed_label_text is pref_label_text
+style tabbed_hbox is pref_hbox
+style tabbed_vbox is pref_vbox
+style tabbed_bar is pref_bar
+style tabbed_text is pref_text
+
+style tabbed_common_window:
+    xsize config.screen_width-350
+
+style tabbed_common_fixed:
+    xsize config.screen_width-350
+    yfill True
+    align (1.0, 1.0)
+
+style tabbed_common_hbox:
+    spacing 65 xalign 0.5 ypos 0.05
+
+style tabbed_common_button:
+    size_group 'pref_tabs' yalign 0.5
+
+style tabbed_common_button_text:
+    text_align 0.5 xalign 0.5 yalign 0.5
+
+style tabbed_tooltip:
+    xalign 0.5 yalign 0.5
+    text_align 0.5 xmaximum 1200
+    outlines [(2, "#000")] color "#FFF"
+    layout "subtitle"
 
 ## About screen ################################################################
 ##
@@ -805,105 +927,6 @@ style slot_button_text:
 ##
 ## https://www.renpy.org/doc/html/screen_special.html#preferences
 
-screen tabbed_menu(my_pages, page_expression, start_page=None):
-    default pages = [page for page in my_pages.keys()]
-    default titles = [title for title in my_pages.values()]
-    if start_page is None:
-        default page = pages[0]
-    else:
-        default page = start_page
-
-    fixed:
-        style_prefix 'pref_common'
-        hbox:
-            ## The icon shortcut to change pages
-            icon_button caption _("Previous Page") kind icn.page_left:
-                action CycleScreenVariable("page", pages, reverse=True)
-                icon_only True
-            ## Buttons to change pages; can be clicked with the mouse, but
-            ## not focused with arrow keys
-            for page_id, title in my_pages.items():
-                textbutton title keyboard_focus False:
-                    action SetScreenVariable("page", page_id)
-
-            ## The icon shortcut to change pages
-            icon_button caption _("Next Page") kind icn.page_right:
-                action CycleScreenVariable("page", pages)
-                icon_only True
-
-    ## A container for all preference screens reusing this one
-    frame:
-        right_margin 70 bottom_margin 200
-        xsize config.screen_width-350-70
-        ysize config.screen_height-220 padding (20, 20)
-        style_prefix 'pref_common' align (1.0, 1.0)
-        has fixed
-        xsize None ysize None
-        yfill False
-
-        side 'c r':
-            style_prefix 'pref'
-            ## This uses the controller viewport to be navigable via keyboard
-            ## or controller.
-            controller_viewport:
-                id 'tab_vp'
-                ## The scroll style tries to keep the focused item in the center
-                ## It also takes the focus_displayable earlier to better animate
-                ## it while the viewport is scrolling.
-                vscroll_style "center" #focus_displayables f1
-                ## How long to animate the scroll movement (horizontally, vertically)
-                scroll_delay (0.1, 0.1)
-                ## This ensures the penalty for items that are up and left/right
-                ## from the currently selected item aren't penalized too harshly
-                ## for it, since we generally want to select the row above/below
-                ## the current one.
-                penalty 64
-                ## If the viewport can be dragged, it tends to grab focus when
-                ## using the arrow keys or controller to navigate, which
-                ## is undesirable unless the user has a touch device.
-                mousewheel True draggable renpy.variant("touch")
-                has vbox
-                xalign 0.0
-
-                use expression page_expression
-
-            ## A scrollbar for mouse or touch users; keyboard_focus is False
-            ## so it can't be navigated to with the arrow keys or controller.
-            vbar value YScrollValue("tab_vp") keyboard_focus False
-
-    $ tooltip = GetTooltip()
-    if tooltip:
-        fixed:
-            xsize config.screen_width-350-70 xalign 1.0 style 'default'
-            ycenter 0.88
-            text tooltip style 'pref_tooltip'
-
-        hbox:
-            style_prefix "slider"
-            box_wrap True
-
-style pref_common_window:
-    xsize config.screen_width-350
-
-style pref_common_fixed:
-    xsize config.screen_width-350
-    yfill True
-    align (1.0, 1.0)
-
-style pref_common_hbox:
-    spacing 65 xalign 0.5 ypos 0.05
-
-style pref_common_button:
-    size_group 'pref_tabs' yalign 0.5
-
-style pref_common_button_text:
-    text_align 0.5 xalign 0.5 yalign 0.5
-
-style pref_tooltip:
-    xalign 0.5 yalign 0.5
-    text_align 0.5 xmaximum 1200
-    outlines [(2, "#000")] color "#FFF"
-    layout "subtitle"
 
 screen preferences():
 
@@ -918,7 +941,7 @@ screen preferences():
         "pref_audio": _("Audio"),
         "pref_controls": _("Controls"),
         "pref_accessibility": _("Accessibility")
-    }, page, page)
+    }, page, use_cursor=True)
 
 
 screen pref_display():
@@ -931,7 +954,7 @@ screen pref_display():
                 # Ensures this button is selected when
                 # not in fullscreen.
                 selected not preferences.fullscreen
-                default_focus 10
+                default_focus 10 + focus_level
                 action Preference("display", "window")
                 tooltip _("Display the game in a window")
             null width 50
@@ -943,7 +966,7 @@ screen pref_display():
         style_prefix "radio"
         label _("Skip Unseen Text")
         textbutton _("ON"):
-            default_focus 5
+            default_focus 5 + focus_level
             action Preference("skip", "all")
             tooltip _("Skip all text, regardless of whether it's been seen before")
         null width 50
@@ -977,7 +1000,7 @@ screen pref_display():
         ## Controller bars will be automatically selected as soon
         ## as it's focused, unlike default bars which must be
         ## "clicked into"/out of.
-        controller_bar value Preference("text speed") default_focus 2:
+        controller_bar value Preference("text speed") default_focus 2 + focus_level:
             tooltip _("Adjust the speed at which text is displayed")
         text _("MAX")
 
@@ -1005,7 +1028,7 @@ screen pref_audio():
             style_prefix "radio"
             label _("Mute All")
             textbutton _("MUTED") action Preference("all mute", "enable"):
-                default_focus 10
+                default_focus 10 + focus_level
                 tooltip _("Mute all audio channels")
             null width 50
             textbutton _("NOT MUTED") action Preference("all mute", "disable"):
@@ -1028,7 +1051,7 @@ screen pref_audio():
                 label _("Music Volume")
                 text "[int(get_non_linear_volume('music volume'))]%" xalign 1.0
             text _("MIN")
-            controller_bar value Preference("music volume") default_focus 8:
+            controller_bar value Preference("music volume") default_focus 8 + focus_level:
                 tooltip _("Adjust the volume of the music")
             text _("MAX")
 
@@ -1039,7 +1062,7 @@ screen pref_audio():
                 label _("Sound Volume")
                 text "[int(get_non_linear_volume('sound volume'))]%" xalign 1.0
             text _("MIN")
-            controller_bar value Preference("sound volume") default_focus 6:
+            controller_bar value Preference("sound volume") default_focus 6 + focus_level:
                 tooltip _("Adjust the volume of sound effects")
             text _("MAX")
             if config.sample_sound:
@@ -1053,7 +1076,7 @@ screen pref_audio():
                 label _("Voice Volume")
                 text "[int(get_non_linear_volume('voice volume'))]%" xalign 1.0
             text _("MIN")
-            controller_bar value Preference("voice volume") default_focus 4:
+            controller_bar value Preference("voice volume") default_focus 4 + focus_level:
                 tooltip _("Adjust the volume of voiceover")
             text _("MAX")
             if config.sample_voice:
@@ -1076,7 +1099,7 @@ screen pref_controls():
             id 'pick_icons'
             alt _("Choose a button icon set {}".format(pad_config.get_alt_text(["a", "b", "l1", "l2"], is_event=False, alt_tag=False)))
             tooltip _("Choose a button icon set")
-            action NullAction() default_focus 15
+            action NullAction() default_focus 15 + focus_level
             has hbox
             spacing 15 first_spacing 15
             add "pad_a"
@@ -1090,7 +1113,7 @@ screen pref_controls():
     hbox:
         style_prefix "radio"
         label _("Hold to Skip")
-        textbutton _("ON") default_focus 10:
+        textbutton _("ON") default_focus 10 + focus_level:
             action [SetField(persistent, "hold_to_skip", True),
                 Function(pad_remap.update_keymap)]
             tooltip _("Hold down the skip button to skip text")
@@ -1189,7 +1212,7 @@ screen pref_accessibility():
     hbox:
         style_prefix "radio"
         label _("Font Override")
-        textbutton _("Default") default_focus 10:
+        textbutton _("Default") default_focus 10 + focus_level:
             action Preference("font transform", None)
             tooltip _("Use the default font")
         null width 50
@@ -1523,23 +1546,23 @@ screen help():
     tag menu
 
     ## Starting device is the last input type
-    default page = "keyboard" if pad_config.is_using_keyboard() else "mouse" if pad_config.is_using_mouse() else "gamepad"
-    default tabs = ["keyboard", "mouse", "gamepad"]
+    default page = "keyboard_help" if pad_config.is_using_keyboard() else "mouse_help" if pad_config.is_using_mouse() else "gamepad_help"
+    default tabs = ["keyboard_help", "mouse_help", "gamepad_help"]
 
     ## Absorb focusing actions since nothing on this screen is keyboard-focusable
     ## This shouldn't really be necessary but Ren'Py sometimes highlights a
     ## button when it shouldn't.
     key ['focus_left', 'focus_up', 'focus_right', 'focus_down'] action NullAction()
 
-    use game_menu(_("Help"), can_focus=False, show_footer=page != "gamepad")
+    use game_menu(_("Help"), can_focus=False, show_footer=page != "gamepad_help")
 
     use tabbed_menu({
-        "keyboard": _("Keyboard"),
-        "mouse": _("Mouse"),
-        "gamepad": _("Gamepad")
-    }, f"{page}_help", page)
+        "keyboard_help": _("Keyboard"),
+        "mouse_help": _("Mouse"),
+        "gamepad_help": _("Gamepad")
+    }, page, arrowkeys="not sticks")
 
-    if page == "gamepad":
+    if page == "gamepad_help":
         use key_footer():
             if GamepadExists():
                 icon_button kind icn.reset suffix "small":
@@ -1582,8 +1605,18 @@ screen keyboard_help():
 
     hbox:
         frame:
-            add "key_escape" alt _("Escape") xalign 1.0
-        text _("Accesses the game menu.")
+            add "key_pgup" alt _("Page Up") xalign 1.0
+        text _("Rolls back to earlier dialogue.")
+
+    hbox:
+        frame:
+            add "key_pgdn" alt _("Page Down") xalign 1.0
+        text _("Rolls forward to later dialogue.")
+
+    hbox:
+        frame:
+            add "key_l" alt _("L") xalign 1.0
+        text _("Open history screen.")
 
     hbox:
         frame:
@@ -1597,13 +1630,13 @@ screen keyboard_help():
 
     hbox:
         frame:
-            add "key_pgup" alt _("Page Up") xalign 1.0
-        text _("Rolls back to earlier dialogue.")
+            add "key_a" alt _("A") xalign 1.0
+        text _("Toggles auto-forward.")
 
     hbox:
         frame:
-            add "key_pgdn" alt _("Page Down") xalign 1.0
-        text _("Rolls forward to later dialogue.")
+            add "key_escape" alt _("Escape") xalign 1.0
+        text _("Accesses the game menu.")
 
     hbox:
         frame:
@@ -1850,8 +1883,31 @@ screen confirm(message, yes_action, no_action):
                 xalign 0.5
                 spacing 150
 
-                textbutton _("Yes") action yes_action
-                textbutton _("No") action no_action
+                ## Updated, for controller. These are special buttons which
+                ## automatically handle controller and keyboard events, and show
+                ## an appropriate icon next to a text caption.
+                icon_button caption _("Confirm"):
+                    ## The kind property is used to inherit properties from
+                    ## previously declared IconButton objects. You can find common
+                    ## ones declared in controller_icons.rpy
+                    kind icn.select
+                    ## The suffix means the "_small" icon version is shown
+                    suffix "small"
+                    ## The button action is as it usually would be
+                    action yes_action
+                    ## You can set up styles as though it were a usual textbutton
+                    text_style "confirm_button_text" style "confirm_button"
+                    ## It will also take an hbox_style if you want to adjust the hbox
+
+                    yalign 0.5
+                    text_insensitive_color gui.idle_color
+                if no_action is not None:
+                    icon_button caption _("Cancel"):
+                        yalign 0.5
+                        kind icn.back suffix "small" action no_action
+                        ## Note that due to style_prefix "confirm", the icon_buttons
+                        ## automatically get the styles "confirm_icon_button",
+                        ## "confirm_icon_button_text", and "confirm_icon_button_hbox"
 
     ## Right-click and escape answer "no".
     key "game_menu" action no_action
