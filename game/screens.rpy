@@ -279,7 +279,7 @@ screen quick_menu():
                     action ShowMenu() suffix "small" mkb_icon "key_escape"
 
         key "a" action Preference("auto-forward", "toggle")
-        key "z" action ShowMenu("save")
+        key "z" action ShowMenu("saves")
         key "l" action ShowMenu("history")
 
         ## Ensures this screen is updated for input type changes
@@ -319,16 +319,14 @@ style quick_icon_button_text is quick_button_text
 ## This screen is included in the main and game menus, and provides navigation
 ## to other menus, and to start the game.
 
-screen navigation(can_focus=True, show_return=True):
+screen navigation(can_focus=True, show_return=True, show_item_anim=True):
 
     default menu_items = [
         MenuItem("Start", Start,
                  valid="main_menu"),
         MenuItem("History", args=["history"], 
                  valid="not main_menu and not shock.menu.get('use_split_history')"),
-        MenuItem("Save", args=["save"], 
-                 valid="not main_menu"),
-        MenuItem("Load", args=["load"]),
+        MenuItem("Saves", args=["saves"]),
         MenuItem("Preferences", args=["preferences"]),
         MenuItem("End Replay", EndReplay, kwargs={"confirm":True}, 
                  valid="_in_replay"),
@@ -363,7 +361,10 @@ screen navigation(can_focus=True, show_return=True):
                         keyboard_focus can_focus or not shock.menu.get("use_null_menu")
                         sensitive can_focus or pad_config.is_using_mouse() or not shock.menu.get("use_null_menu")
                         id item.name
-                        at shock.anims.get("nav_hover")
+                        if show_item_anim:
+                            at shock.anims.get("nav_hover"), shock.anims.get("nav_item_show")(i + offset)
+                        else:
+                            at shock.anims.get("nav_hover")
                 else:
                    $  offset -= 1
 
@@ -375,7 +376,10 @@ screen navigation(can_focus=True, show_return=True):
                 sensitive can_focus or pad_config.is_using_mouse() or not shock.menu.get("use_null_menu")
 
                 action Return()
-                at shock.anims.get("nav_hover")
+                if show_item_anim:
+                    at shock.anims.get("nav_hover"), shock.anims.get("nav_item_show")(len(menu_items) + offset)
+                else:
+                    at shock.anims.get("nav_hover")
 
 
 
@@ -417,7 +421,7 @@ screen main_menu():
             if renpy.variant("pc"):
                 textbutton _("Quit") action Quit(confirm=False) id "pc" at shock.anims.get("nav_hover")
     else:
-        use navigation(show_return=False)
+        use navigation(show_return=False, show_item_anim=False)
 
     if gui.show_name:
 
@@ -507,7 +511,9 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
                                 spacing spacing
 
                                 transclude
-                        vbar value YScrollValue("game_menu_vp") keyboard_focus False
+                        vbar value YScrollValue("game_menu_vp"):
+                            keyboard_focus False
+                            unscrollable "hide"
 
                 elif scroll == "vpgrid":
 
@@ -530,7 +536,7 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
 
                     transclude
 
-    use navigation(can_focus=False)
+    use navigation(can_focus=False, show_item_anim=False)
 
     #label title
     truncate_text title:
@@ -551,14 +557,14 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
     add game_menu_listener
 
 screen game_menu_footer_buttons():
-    if shock.menu.get("use_null_menu"):
-        $ return_action = ShowMenu("null_menu")
+    if shock.menu.get("use_null_menu") and not pad_config.is_using_mouse():
+        $ return_action = ShowMenu("null_menu", show_item_anim=False)
     else:
         $ return_action = Return()
     icon_button kind icn.menu_return suffix "small" action return_action
     icon_button kind icn.select suffix "small"
 
-screen null_menu():
+screen null_menu(show_item_anim=True):
 
     tag menu
 
@@ -567,7 +573,7 @@ screen null_menu():
     if main_menu:
         add gui.main_menu_background
 
-    use navigation
+    use navigation(show_item_anim=show_item_anim)
 
     key "game_menu" action Return()
 
@@ -613,7 +619,7 @@ style game_menu_label_text:
     yalign 0.5
 
 style return_button:
-    xpos gui.navigation_xpos
+    xoffset gui.navigation_xpos
     yalign 1.0
     yoffset -45
 default focus_level = 0
@@ -625,22 +631,24 @@ screen tabbed_menu(my_pages, page_expression, use_cursor=False, arrowkeys=None):
         hide_on_mouse=True, padding=gui.preferences_selector_frame_padding,
         active_area=(350, 200, config.screen_width-350, config.screen_height-200))
 
+    default yadjustor = ui.adjustment()
+
     fixed:
         style_prefix 'tabbed_common'
         hbox:
             ## The icon shortcut to change pages
             icon_button caption _("Previous Page") kind icn.page_left:
-                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages, reverse=True), Function(renpy.restart_interaction)]
+                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages, reverse=True), Function(yadjustor.change, 0)]
                 icon_only True
             ## Buttons to change pages; can be clicked with the mouse, but
             ## not focused with arrow keys
             for page_id, title in my_pages.items():
                 textbutton title keyboard_focus False:
-                    action [IncrementVariable("focus_level", 15), SetScreenVariable("page", page_id)]
+                    action [IncrementVariable("focus_level", 15), SetScreenVariable("page", page_id), Function(yadjustor.change, 0)]
 
             ## The icon shortcut to change pages
             icon_button caption _("Next Page") kind icn.page_right:
-                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages), Function(renpy.restart_interaction)]
+                action [IncrementVariable("focus_level", 15), CycleScreenVariable("page", pages), Function(yadjustor.change, 0)]
                 icon_only True
 
     ## A container for all preference screens reusing this one
@@ -659,6 +667,8 @@ screen tabbed_menu(my_pages, page_expression, use_cursor=False, arrowkeys=None):
             ## or controller.
             controller_viewport:
                 id 'tab_vp'
+                ## needed to force this back to the top when we change tabs
+                yadjustment yadjustor
                 ## The scroll style tries to keep the focused item in the center
                 ## It also takes the focus_displayable earlier to better animate
                 ## it while the viewport is scrolling.
@@ -685,6 +695,7 @@ screen tabbed_menu(my_pages, page_expression, use_cursor=False, arrowkeys=None):
             ## A scrollbar for mouse or touch users; keyboard_focus is False
             ## so it can't be navigated to with the arrow keys or controller.
             vbar value YScrollValue("tab_vp"):
+                unscrollable "hide"
                 keyboard_focus False
                 default_focus False
 
@@ -713,15 +724,18 @@ style tabbed_bar is pref_bar
 style tabbed_text is pref_text
 
 style tabbed_common_window:
-    xsize config.screen_width-350
+    xsize config.screen_width-(gui.navigation_width + gui.navigation_xpos)
 
 style tabbed_common_fixed:
-    xsize config.screen_width-350
+    xsize config.screen_width-(gui.navigation_width + gui.navigation_xpos)
     yfill True
     align (1.0, 1.0)
 
 style tabbed_common_hbox:
-    spacing 65 xalign 0.5 ypos 0.05
+    spacing 65
+    xalign 0.5
+    xoffset -gui.navigation_xpos
+    ypos 0.05
 
 style tabbed_common_button:
     size_group 'pref_tabs' yalign 0.5
@@ -782,110 +796,155 @@ style about_label_text:
 ## https://www.renpy.org/doc/html/screen_special.html#save https://
 ## www.renpy.org/doc/html/screen_special.html#load
 
-screen save():
-
+screen saves():
     tag menu
 
-    use file_slots(_("Save"))
+    default f1 = FocusDisplayable(gui.preferences_selector_frame,
+        hide_on_mouse=True, padding=gui.preferences_selector_frame_padding,
+        active_area=(350, 200, config.screen_width-350, config.screen_height-200))
 
+    use game_menu(_("Saves"), show_footer=False):
 
-screen load():
-
-    tag menu
-
-    use file_slots(_("Load"))
-
-
-screen file_slots(title):
-
-    default page_name_value = FilePageNameInputValue(pattern=_("Page {}"), auto=_("Automatic saves"), quick=_("Quick saves"))
-
-    use game_menu(title):
+        style_prefix "save"
+        default max_pages = 6 # feel free to increase just readjust space accordingly
 
         fixed:
+            style_prefix 'tabbed_common'
+            vbox:
+                xfill True
+                hbox:
+                    # navbar for pages, stealing some formatting from tabbed_menu
+                    icon_button caption _("Previous Page") kind icn.page_left:
+                        action FilePagePrevious(wrap=True, max=max_pages)
+                        icon_only True
 
-            ## This ensures the input will get the enter event before any of the
-            ## buttons do.
-            order_reverse True
+                    if config.has_autosave:
+                        textbutton _("{#auto_page}A") action FilePage("auto") keyboard_focus False
 
+                    if config.has_quicksave:
+                        textbutton _("{#quick_page}Q") action FilePage("quick") keyboard_focus False
+
+                    ## range(1, 10) gives the numbers from 1 to max_pages.
+                    for page in range(1, max_pages+1):
+                        textbutton "[page]" action FilePage(page) keyboard_focus False
+
+                    icon_button caption _("Next Page") kind icn.page_right:
+                        action FilePageNext(wrap=True, max=max_pages)
+                        icon_only True
+                null height 20
+                # the actual save slots
+                hbox:
+                    yalign 0.5
+                    $ columns = 3
+                    $ rows = 2
+
+                    # Display a grid of file slots.
+
+                    grid columns rows:
+                        transpose True
+                        style_group "file_picker"
+                        spacing 5
+
+                        # Display ten file slots, numbered 1 - 10.
+                        for i in range(1, columns * rows + 1):
+
+                            # Each file slot is a button.
+                            button: #note that if you put ANY IMAGE in the following, it will add and stretch the bg. Trust me, I tried lol
+                                action FileLoad(i)
+                                has vbox
+                                null width 5
+                                use file_butt
+                            # OKAY THIS IS REALLY SILLY IN HOW THIS WORKS:
+                            # So the background for the file slots is actually a button! The reason why it's a button is because the FileSave, FileLoad, and FileAction functions have a feature to show which save file is the newest. The button will be marked as *selected* if it is the newest, so the images used for ‘selected_background’ and ‘selected_hover_background’ are used to denote that it’s the newest file. I didnt assign a ‘selected_’ function to the save and load buttons specifically because it looks weird and doesn't clearly signal to the player that it's the newest save.
+                            # Because of this though, that means the background of the save file is hoverable and clickable. I have it set so that it loads because I figured a locked file would still be able to load, just not delete or save over.
+
+    add f1
+
+    use key_footer():
+        hbox:
+            icon_button:
+                kind icn.reset
+                caption _("Sync")
+                action Show("choices",
+                            config.enter_yesno_transition, # transition
+                            "Select Sync Mode",
+                            {
+                                "Upload": UploadSync(),
+                                "Download": DownloadSync()
+                            })
+                suffix "small"
+            use game_menu_footer_buttons
+
+#This screen has all the info of the save/load
+screen file_butt:
+
+    frame:
+
+        has vbox
+        style_group "saveload"
+
+        xfit True
+        yfit True
+
+        #adds the screenshot
+        add FileScreenshot(i) xalign .5
+
+        #adds the time whe the player saves their file
+        $ file_time = FileTime(i, format=u'%b %d %Y, %I:%M %p', empty=_("Empty Slot"))
+
+        #and then you put it in text! Here I changed the size and alignment to the specifc text
+        text "[file_time]" size 13  xalign .5
+
+        null height 2
+
+        #This adds the name of the file, which is a number
+        $ file_name = FileSlotName(i, columns * rows)
+
+        # use the player-renameable save if this isn't auto/quick
+        if str(file_name)[0].isdigit():
+            default page_name_value = FilePageNameInputValue(pattern=_("Save {}"),  page=file_name)
             ## The page name, which can be edited by clicking on a button.
             button:
                 style "page_label"
 
                 key_events True
+                keyboard_focus False
                 xalign 0.5
                 action page_name_value.Toggle()
 
                 input:
                     style "page_label_text"
                     value page_name_value
+                    pixel_width config.thumbnail_width
+        else:
+            # otherwise, just a text field
+            button:
+                style "page_label"
+                text file_name.replace("a", "Auto ").replace("q", "Quick "):
+                    style "page_label_text"
 
-            ## The grid of file slots.
-            grid gui.file_slot_cols gui.file_slot_rows:
-                style_prefix "slot"
+        null height 10
+        hbox:
+            xsize config.thumbnail_width
+            #SAVE BUTTON#
+            textbutton _("Save") action FileSave(i, confirm=True, page=None) xalign .5:
+                default_focus 3 * (i%6==1)
 
-                xalign 0.5
-                yalign 0.5
+            #LOAD BUTTON#
+            #Not much to do here. Load is always showing and intereactable even if the save is locked.
+            textbutton _("Load") action FileLoad(i, confirm=True, page=None) xalign .5:
+                default_focus 2 * (i%6==1)
 
-                spacing gui.slot_spacing
+            #DELETE BUTTON#
+            #same as before in save~
+            textbutton _("Delete") action FileDelete(i, confirm=True, page=None) xalign .5:
+                default_focus (i%6==1)
 
-                for i in range(gui.file_slot_cols * gui.file_slot_rows):
+style file_picker_button is frame:
+    selected_background gui.preferences_selector_frame
 
-                    $ slot = i + 1
-
-                    button:
-                        action FileAction(slot)
-
-                        has vbox
-
-                        add FileScreenshot(slot) xalign 0.5
-
-                        text FileTime(slot, format=_("{#file_time}%A, %B %d %Y, %H:%M"), empty=_("empty slot")):
-                            style "slot_time_text"
-
-                        text FileSaveName(slot):
-                            style "slot_name_text"
-
-                        key "save_delete" action FileDelete(slot)
-
-            ## Buttons to access other pages.
-            vbox:
-                style_prefix "page"
-
-                xalign 0.5
-                yalign 1.0
-
-                hbox:
-                    xalign 0.5
-
-                    spacing gui.page_spacing
-
-                    textbutton _("<") action FilePagePrevious()
-                    key "save_page_prev" action FilePagePrevious()
-
-                    if config.has_autosave:
-                        textbutton _("{#auto_page}A") action FilePage("auto")
-
-                    if config.has_quicksave:
-                        textbutton _("{#quick_page}Q") action FilePage("quick")
-
-                    ## range(1, 10) gives the numbers from 1 to 9.
-                    for page in range(1, 10):
-                        textbutton "[page]" action FilePage(page)
-
-                    textbutton _(">") action FilePageNext()
-                    key "save_page_next" action FilePageNext()
-
-                if config.has_sync:
-                    if CurrentScreenName() == "save":
-                        textbutton _("Upload Sync"):
-                            action UploadSync()
-                            xalign 0.5
-                    else:
-                        textbutton _("Download Sync"):
-                            action DownloadSync()
-                            xalign 0.5
-
+style file_picker_frame:
+    background None
 
 style page_label is gui_label
 style page_label_text is gui_label_text
@@ -898,7 +957,6 @@ style slot_time_text is slot_button_text
 style slot_name_text is slot_button_text
 
 style page_label:
-    xpadding 75
     ypadding 5
     xalign 0.5
 
@@ -1857,7 +1915,7 @@ style help_text:
 ##
 ## https://www.renpy.org/doc/html/screen_special.html#confirm
 
-screen confirm(message, yes_action, no_action):
+screen confirm(message, yes_action, no_action, yes_text=_("Confirm"), no_text=_("Cancel")):
 
     ## Ensure other screens do not get input while this screen is displayed.
     modal True
@@ -1886,7 +1944,7 @@ screen confirm(message, yes_action, no_action):
                 ## Updated, for controller. These are special buttons which
                 ## automatically handle controller and keyboard events, and show
                 ## an appropriate icon next to a text caption.
-                icon_button caption _("Confirm"):
+                icon_button caption yes_text:
                     ## The kind property is used to inherit properties from
                     ## previously declared IconButton objects. You can find common
                     ## ones declared in controller_icons.rpy
@@ -1902,7 +1960,7 @@ screen confirm(message, yes_action, no_action):
                     yalign 0.5
                     text_insensitive_color gui.idle_color
                 if no_action is not None:
-                    icon_button caption _("Cancel"):
+                    icon_button caption no_text:
                         yalign 0.5
                         kind icn.back suffix "small" action no_action
                         ## Note that due to style_prefix "confirm", the icon_buttons
@@ -1911,6 +1969,46 @@ screen confirm(message, yes_action, no_action):
 
     ## Right-click and escape answer "no".
     key "game_menu" action no_action
+
+screen choices(message, choices):
+    # choices is dict with key: text, value: action
+    modal True
+
+    zorder 200
+
+    style_prefix "confirm"
+
+    add "gui/overlay/confirm.png"
+
+    frame:
+
+        vbox:
+            xalign .5
+            yalign .5
+            spacing 45
+
+            label _(message):
+                style "confirm_prompt"
+                xalign 0.5
+
+            hbox:
+                xalign 0.5
+                spacing 150
+
+                default kinds = [icn.delete, icn.sync, icn.reset, icn.select]
+                # keys that get popped in reverse order
+                for text, action in choices.items():
+
+                    icon_button caption text:
+                        kind kinds.pop()
+                        suffix "small"
+                        action action
+                        yalign 0.5
+                        text_insensitive_color gui.idle_color
+
+    ## Right-click and escape answer "no".
+    key "game_menu" action Hide("choices")
+
 
 
 style confirm_frame is gui_frame
@@ -2043,36 +2141,45 @@ screen nvl(dialogue, items=None):
     window:
         style "nvl_window"
 
-        viewport:
-            if shock.nvl.get("scrolling"):
-                yinitial 1.0
-                scrollbars shock.nvl.get("scrollbars")
-                mousewheel shock.nvl.get("scrollbars_mousewheel")
-            ysize 1080 - (gui.nvl_borders.padding[1] + gui.nvl_borders.padding[3]) - 20
+        side "c r":
+            controller_viewport:
+                id "nvl_vp"
+                if shock.nvl.get("scrolling"):
+                    yinitial 1.0
+                    scrollbars shock.nvl.get("scrollbars")
+                    mousewheel shock.nvl.get("scrollbars_mousewheel")
+                arrowkeys "not sticks"
 
-            vbox:
-                spacing gui.nvl_spacing
+                ysize 1080 - (gui.nvl_borders.padding[1] + gui.nvl_borders.padding[3]) - 20
 
-                ## Displays dialogue in either a vpgrid or the vbox.
-                if gui.nvl_height:
+                vbox:
+                    spacing gui.nvl_spacing
 
-                    vpgrid:
-                        cols 1
-                        yinitial 1.0
+                    ## Displays dialogue in either a vpgrid or the vbox.
+                    if gui.nvl_height:
+
+                        vpgrid:
+                            cols 1
+                            yinitial 1.0
+
+                            use nvl_dialogue(dialogue)
+
+                    else:
 
                         use nvl_dialogue(dialogue)
 
-                else:
+                    ## Displays the menu, if given. The menu may be displayed incorrectly if
+                    ## config.narrator_menu is set to True.
+                    for i in items:
 
-                    use nvl_dialogue(dialogue)
+                        textbutton i.caption:
+                            action i.action
+                            style "nvl_button"
 
-                ## Displays the menu, if given. The menu may be displayed incorrectly if
-                ## config.narrator_menu is set to True.
-                for i in items:
-
-                    textbutton i.caption:
-                        action i.action
-                        style "nvl_button"
+            vbar value YScrollValue("nvl_vp"):
+                unscrollable "hide"
+                keyboard_focus False
+                default_focus False
 
     add SideImage() xalign 0.0 yalign 1.0
 

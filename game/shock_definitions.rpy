@@ -5,6 +5,8 @@ init -10 python:
 
     shock.anims.nav_hover = null_transform # applied to all navigation_menu items at all times
     shock.anims.nav_frame_show = ex_nav_popout # used when showing the navigation_menu
+    shock.anims.nav_item_show = ex_nav_item_popout # used for all elements in the navigation menu
+    # must take 1 argument, which is the index of the item in the currently valid menu items
 
     # aside: the background for the navigation menu stored alongside main_menu_background
     #        and game_menu_background in gui.rpy
@@ -45,3 +47,8 @@ transform ex_nav_popout():
     on hide:
         ## Ease it off-screen again.
         easeout_back 0.25 xpos 0.0 xanchor 1.0
+
+transform ex_nav_item_popout(index):
+    xpos -0.5 xanchor 1.0
+    0.05 * index + 0.1
+    easein 0.1 xpos 0.0 xanchor 0.0

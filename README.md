@@ -11,16 +11,18 @@ I've been around the block enough times to know that there's always a few things
 - Significant menu reworks
     - Preference screen QoL tweaks
     - Navigation screen rewrite to facilitate animations
+    - Improved save screen
+    - Added option to use history screen not attached to game_menu
     - Integrated feniksdev's controller support *without* using the EasyGUI template
-- Various new preference parameter
-    - Added default style to all buttons that gives them `activate_sound` and `hover_sound` parameters
-    - Added `ui_adv` for text advance
-    - Added transform `hover_nav` to all buttons in `navigation()`
 - Modified default nvl behavior to length, height = None
     - Also corrected the history and small screen variant
     - nvl mode scrolls on overflow, optional scrollbar to go back up
+- Various new preference parameters
+    - Added default style to all buttons that gives them `activate_sound` and `hover_sound` parameters
+    - Added `ui_adv` for text advance
+    - Added transform `hover_nav` to all buttons in `navigation()`
 - Most importantly: prevented accidental activation of `hover_sound` when clicking navigation_menu items and changing screens.
-    - *Note: this is no longer the most important thing, but it was what got me to start this project in the first place*
+    - *Note: this is no longer the most important thing in this project, but it was what got me to start it in the first place*
 
 ### Added to `/game/libs`
 If you use this project and do not remove these files, you need to give attribution per their license terms.
@@ -31,8 +33,5 @@ If you use this project and do not remove these files, you need to give attribut
 
 ## Future Changes
 Subject to my changing whims.
-- Improved save screen
-- Enhanced controller support
 - Framework for better menu animations
-- OPTIONS for split history screen and main menu screen
 - MY solution to speech pauses + options to enable
