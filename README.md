@@ -31,11 +31,12 @@ If you use this project, you need to give attribution per their license terms.
 - my homebrewed text bloop plugin
 
 ## TODO
-- [ ] fix focus on saves screen
+- [X] fix focus on saves screen
+- [x] fix focus when changing button styles
 - [ ] clean up styles on saves screen
-- [ ] change default esc screen when null menu is false
-- [ ] change shock prefs to "init python in shock"
-- [ ] figure out how to add single transform to all button prompts
+- [x] change default esc screen when null menu is false
+- [ ] ~~change shock prefs to "init python in shock"~~ not what I want
+- [x] figure out how to add single transform to all button prompts
 - [ ] add default sounds to menus + buttons
 - [ ] new radio and check images
 - [ ] add text pause lib

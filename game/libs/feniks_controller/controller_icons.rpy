@@ -129,8 +129,11 @@ init python:
 
         def get_box(layout):
             img = controller_icon(name, colors, layout)
-            return Fixed(Image(img, dpi=dpi, oversample=oversample,
-                align=(0.5, 0.5)), xysize=(box_size, box_size))
+            return Fixed(
+                At(
+                    Image(img, dpi=dpi, oversample=oversample, align=(0.5, 0.5)), 
+                shock.transf.get("button_glyphs")), 
+            xysize=(box_size, box_size))
 
         return ConditionSwitch(
             "persistent.controller_layout == 'xbox'", get_box("xbox"),
@@ -232,8 +235,11 @@ init python:
         files = renpy.list_files()
 
         def get_box(img, oversample, box_size):
-            return Fixed(Image(img, dpi=dpi, oversample=oversample,
-                align=(0.5, 0.5)), xysize=(box_size, box_size))
+            return Fixed(
+                At(
+                    Image(img, dpi=dpi, oversample=oversample, align=(0.5, 0.5)),
+                shock.transf.get("button_glyphs")),
+            xysize=(box_size, box_size))
         dpi = pad_config.DEFAULT_DPI or 96
 
         for f in files:
@@ -255,15 +261,19 @@ init python:
                     if name in ("key_enter",):
                         oversample *= 1.4
                     ## Declare a regular sized version
-                    renpy.image(name, Fixed(Image(f, dpi=dpi,
-                        oversample=oversample, align=(0.5, 0.5)),
+                    renpy.image(name, Fixed(
+                        At(
+                            Image(f, dpi=dpi, oversample=oversample, align=(0.5, 0.5)),
+                        shock.transf.get("button_glyphs")),
                         xysize=(int(box_size*mult), box_size)))
                     ## Declare the 1.6x smaller version
                     oversample = 1.6
                     if name in ("key_enter",):
                         oversample *= 1.4
-                    renpy.image(name+"_small", Fixed(Image(f, dpi=dpi,
-                        oversample=oversample, align=(0.5, 0.5)),
+                    renpy.image(name+"_small", Fixed(
+                        At(
+                            Image(f, dpi=dpi, oversample=oversample, align=(0.5, 0.5)), 
+                        shock.transf.get("button_glyphs")),
                         xysize=(int(box_size / oversample * mult), int(box_size / oversample))))
                 else:
                     ## Declare a regular sized version

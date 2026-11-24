@@ -507,10 +507,9 @@ screen game_menu(title, scroll=None, yinitial=0.0, spacing=0, can_focus=True, sh
                             pagekeys True
                             arrowkeys "not sticks"
 
-                            vbox:
-                                spacing spacing
+                            spacing spacing
 
-                                transclude
+                            transclude
                         vbar value YScrollValue("game_menu_vp"):
                             keyboard_focus False
                             unscrollable "hide"
@@ -841,7 +840,7 @@ screen saves():
                     # Display a grid of file slots.
 
                     grid columns rows:
-                        transpose True
+                        transpose False
                         style_group "file_picker"
                         spacing 5
 
@@ -850,6 +849,7 @@ screen saves():
 
                             # Each file slot is a button.
                             button: #note that if you put ANY IMAGE in the following, it will add and stretch the bg. Trust me, I tried lol
+                                keyboard_focus False
                                 action FileLoad(i)
                                 has vbox
                                 null width 5
@@ -877,7 +877,6 @@ screen saves():
 
 #This screen has all the info of the save/load
 screen file_butt:
-
     frame:
 
         has vbox
@@ -892,8 +891,7 @@ screen file_butt:
         #adds the time whe the player saves their file
         $ file_time = FileTime(i, format=u'%b %d %Y, %I:%M %p', empty=_("Empty Slot"))
 
-        #and then you put it in text! Here I changed the size and alignment to the specifc text
-        text "[file_time]" size 13  xalign .5
+        text "[file_time]" xalign .5 style "file_picker_text"
 
         null height 2
 
@@ -905,7 +903,6 @@ screen file_butt:
             default page_name_value = FilePageNameInputValue(pattern=_("Save {}"),  page=file_name)
             ## The page name, which can be edited by clicking on a button.
             button:
-                style "page_label"
 
                 key_events True
                 keyboard_focus False
@@ -913,38 +910,38 @@ screen file_butt:
                 action page_name_value.Toggle()
 
                 input:
-                    style "page_label_text"
                     value page_name_value
                     pixel_width config.thumbnail_width
         else:
             # otherwise, just a text field
             button:
-                style "page_label"
-                text file_name.replace("a", "Auto ").replace("q", "Quick "):
-                    style "page_label_text"
+                text file_name.replace("a", "Auto ").replace("q", "Quick ")
 
         null height 10
         hbox:
             xsize config.thumbnail_width
             #SAVE BUTTON#
             textbutton _("Save") action FileSave(i, confirm=True, page=None) xalign .5:
-                default_focus 3 * (i%6==1)
+                default_focus 3 * (6 - (i-1)%6)
 
             #LOAD BUTTON#
             #Not much to do here. Load is always showing and intereactable even if the save is locked.
             textbutton _("Load") action FileLoad(i, confirm=True, page=None) xalign .5:
-                default_focus 2 * (i%6==1)
+                default_focus 2 * (6 - (i-1)%6)
 
             #DELETE BUTTON#
             #same as before in save~
             textbutton _("Delete") action FileDelete(i, confirm=True, page=None) xalign .5:
-                default_focus (i%6==1)
+                default_focus (6 - (i-1)%5)
 
 style file_picker_button is frame:
     selected_background gui.preferences_selector_frame
 
 style file_picker_frame:
     background None
+
+style file_picker_text:
+    size 25
 
 style page_label is gui_label
 style page_label_text is gui_label_text
@@ -977,6 +974,10 @@ style slot_button:
 style slot_button_text:
     properties gui.text_properties("slot_button")
 
+style saveload_button is page_label
+style saveload_input is page_label_text
+style saveload_text is page_label_text
+
 
 ## Preferences screen ##########################################################
 ##
@@ -1000,6 +1001,14 @@ screen preferences():
         "pref_controls": _("Controls"),
         "pref_accessibility": _("Accessibility")
     }, page, use_cursor=True)
+
+    ## This is a special screen element like `key` which only triggers the
+    ## provided action if the player is focused on the button with the provided
+    ## ID. So, if the player is focused on the pick_icons button and hits
+    ## focus_right, it will cycle to the next controller layout.
+    focused_on "pick_icons" key "focus_left" action [Notify("left"), CycleControllerLayout(reverse=True)]
+    focused_on "pick_icons" key "focus_right" action CycleControllerLayout(reverse=False)
+
 
 
 screen pref_display():
@@ -1167,6 +1176,7 @@ screen pref_controls():
         textbutton "→":
             style 'pref_arrow' keyboard_focus False
             action CycleControllerLayout(reverse=False)
+
 
     hbox:
         style_prefix "radio"

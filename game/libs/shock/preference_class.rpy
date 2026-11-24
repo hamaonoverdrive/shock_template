@@ -18,6 +18,7 @@ init python:
     shock = PreferencesStorage()
     shock.audio = PreferencesStorage()
     shock.anims = PreferencesStorage("animation")
+    shock.transf = PreferencesStorage("animation")
     shock.nvl = PreferencesStorage()
     shock.menu = PreferencesStorage()
 
